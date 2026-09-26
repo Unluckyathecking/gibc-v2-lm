@@ -159,6 +159,9 @@ RUNS = {
     "sweep_A_xsa": TrainConfig("A_xsa", SWEEP_TOKENS),
     "sweep_A_vres": TrainConfig("A_vres", SWEEP_TOKENS),
     "sweep_A_normuon": TrainConfig("A", SWEEP_TOKENS, opt="normuon", cautious_wd=True),
+    # Same optimizer at modded-nanogpt's record hyperparameters (lr 0.023, wd 1.2).
+    "sweep_A_normuon_rec": TrainConfig("A", SWEEP_TOKENS, opt="normuon", cautious_wd=True,
+                                       muon_lr=0.023, muon_wd=1.2),
     # Main runs are added after the sweep picks a winner and runner-up.
 }
 SWEEP_RUNS = [name for name in RUNS if name.startswith("sweep_")]
