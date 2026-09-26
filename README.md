@@ -2,7 +2,7 @@
 
 Submission for the Global Innovation Build Challenge V2, Track 01 (TECH, foundational LLM development).
 
-We train a 14-layer decoder-only transformer with 49,822,228 trainable parameters from random initialisation on 20B tokens of openly licensed English web, maths, PDF and Wikipedia text, using our own 32k BPE tokenizer. The recipe is the modded-nanogpt family of speedrun techniques (Muon, QK-norm, ReLU², U-net skips, logit softcap) plus a ResFormer value residual, a warmup-stable-decay schedule, and a quality-data anneal during the decay phase. Every design choice that made it into the main runs was tested first in an 11-arm, 1B-token ablation sweep, reported in full below. Training data is decontaminated against WikiText-103 validation and test at the document level before tokenization. One H100 trains a main run in about 6.5 hours.
+We train a 14-layer decoder-only transformer with 49,822,228 trainable parameters from random initialisation on 20B tokens of openly licensed English web, maths, PDF and Wikipedia text, using our own 32k BPE tokenizer. The recipe is the modded-nanogpt family of speedrun techniques (Muon, QK-norm, ReLU², U-net skips, logit softcap) plus a ResFormer value residual, a warmup-stable-decay schedule, and a quality-data anneal during the decay phase. Every design choice that made it into the main runs was tested first in an 11-arm, 1B-token ablation sweep, reported in full below. Training data is decontaminated against WikiText-103 validation and test at the document level before tokenization. A main run takes about 8 hours on one H100.
 
 Everything in this repository was written by AI coding agents under human direction. See [AI use disclosure](#ai-use-disclosure).
 
@@ -23,7 +23,7 @@ Final numbers for the two 20B-token main runs. "final" is the weights after the 
 | Weights reported | {{MAIN_ANNEAL_VARIANT}} | {{MAIN_MILD_VARIANT}} |
 | H100 hours | {{MAIN_ANNEAL_GPU_HOURS}} | {{MAIN_MILD_GPU_HOURS}} |
 
-Submitted model: **{{MAIN_SUBMITTED_RUN}}** ({{MAIN_SUBMITTED_VARIANT}} weights). All benchmarks are zero-shot on the full evaluation sets (no `--limit`). Standard errors are about ±0.45 points on HellaSwag, ±1.0 on ARC-Easy, ±1.1 on PIQA and ±1.4 on WinoGrande. Raw JSON: `results/main/{{MAIN_...}}` (placeholder until the runs finish).
+Submitted model: **{{MAIN_SUBMITTED_RUN}}** ({{MAIN_SUBMITTED_VARIANT}} weights). All benchmarks are zero-shot on the full evaluation sets (no `--limit`). Standard errors are about ±0.45 points on HellaSwag, ±1.0 on ARC-Easy, ±1.1 on PIQA and ±1.4 on WinoGrande. Raw JSON: {{MAIN_EVAL_JSON_PATHS}}.
 
 Training curves: {{MAIN_CURVES_PNG}}.
 
@@ -104,7 +104,7 @@ The loader allocates the 64 rows of each micro-batch across sources by integer r
 
 "FineWeb-Edu int_score>=4" (`fwedu_hq`) is drawn from 60 parquet files disjoint from those used for plain FineWeb-Edu, and validation documents come from a third, separate file, so no document appears in two splits.
 
-The two main runs are identical up to step 24,795 and differ only in how strongly the anneal leans on curated data. The 1B sweep found that the strong anneal (`sweep_A_anneal`, no Wikipedia) helped ARC-Easy and hurt PIQA; the mild variant keeps about 35% general web text to test whether the PIQA loss can be avoided.
+The two main runs share the model, seed, schedule and main-phase mix, and differ in how strongly the anneal leans on curated data. They do not see identical main-phase documents: `main_vres_anneal` was launched before the FineWeb-Edu and DCLM shards were extended (99 to 108 and 68 to 77 shards), and the loader's shuffled shard order depends on the shard count, so the two runs read those sources in different orders. The 1B sweep found that the strong anneal (`sweep_A_anneal`, no Wikipedia) helped ARC-Easy and hurt PIQA; the mild variant keeps about 35% general web text to test whether the PIQA loss can be avoided.
 
 ## Data
 
@@ -123,16 +123,25 @@ No pretrained weights or pretrained tokenizer are used. No LLM-generated or synt
 
 ### Decontamination
 
-WikiText-103 is built from Wikipedia articles, and those articles are also mirrored across the web. Before any filtering, a 250M-token sample of our tokenized training shards contained 4.96% of the distinct WikiText-103 test 13-grams. They came from 6 of the 182,375 documents scanned, all of them Wikipedia mirrors. Left in, those documents would lower test perplexity through memorisation rather than modelling, so we filter at tokenization time ([`gibc/decontam.py`](gibc/decontam.py)):
+WikiText-103 is built from Wikipedia articles, and those articles are also mirrored across the web. Before any filtering, a 250M-token sample of our tokenized training shards contained 4.96% of the distinct WikiText-103 test 13-grams. They came from 6 of the 182,375 documents scanned, all of them copies of Wikipedia article text. Left in, those documents would lower test perplexity through memorisation rather than modelling, so we filter at tokenization time ([`gibc/decontam.py`](gibc/decontam.py)):
 
 1. **Normalisation.** Text is lowercased and split into runs of `[a-z0-9]`. N-grams are over these words, not tokens, so the check does not depend on the tokenizer and is robust to WikiText's spaced punctuation (` @-@ `, ` , `).
 2. **13-gram filter, all sources.** Every training *and validation* document, from every source, that shares at least one 13-gram with WikiText-103 validation + test is dropped whole.
 3. **Title filter, Wikipedia only.** Wikipedia articles whose normalised title matches a WikiText-103 validation or test article title are dropped whether or not they share a 13-gram.
 4. **Accounting.** Drop counts are recorded per shard (`n_docs_dropped_title`, `n_docs_dropped_ngram`) and summed per source in the manifest status.
 
-Totals for the 32k-tokenizer shards: {{DECONTAM_DROPPED_NGRAM_TOTAL}} documents dropped by the 13-gram filter across all sources ({{DECONTAM_DROPPED_NGRAM_BY_SOURCE}}) and {{DECONTAM_DROPPED_TITLE_TOTAL}} Wikipedia articles dropped by title. After filtering, WikiText-103 test 13-gram overlap in the same kind of sample is {{DECONTAM_POST_FILTER_FRAC}}.
+Totals for the 32k-tokenizer shards, from the data manifest: 4,969 documents dropped by the 13-gram filter (FineWeb-Edu 2,986, FineWeb-Edu int_score>=4 420, DCLM 424, FineMath 6, FinePDFs 8, Wikipedia 1,107 training and 18 validation) and 16 Wikipedia articles dropped by title. Because the filter and the overlap report use the same normalisation and 13-grams, no remaining document shares a 13-gram with WikiText-103 validation or test; we did not rerun the sample report on the filtered shards.
 
-The four multiple-choice benchmarks are **not** filtered. `modal_data.py::decontam_bench` reports their 13-gram overlap with a training-shard sample: {{BENCH_OVERLAP_SUMMARY}}.
+The four multiple-choice benchmarks are **not** filtered. `modal_data.py::decontam_bench` reports their 13-gram overlap with a 300M-token sample of the filtered training shards (the first shard of each of the six sources, 219,831 documents). An item counts as hit if any 13-gram of its context joined with a candidate answer appears in the sample ([`results/decontam_bench.json`](results/decontam_bench.json)):
+
+| Benchmark | Items hit | Matched 13-grams |
+|---|---|---|
+| HellaSwag | 3 / 10,042 | 59 / 1,288,878 |
+| ARC-Easy | 1 / 2,376 | 4 / 46,493 |
+| PIQA | 2 / 1,838 | 57 / 40,376 |
+| WinoGrande | 0 / 1,267 | 0 / 13,692 |
+
+The matched text is generic how-to and textbook phrasing: WikiHow-style instructions for HellaSwag, a sentence about deflection in the northern and southern hemispheres for ARC-Easy, and the area of a triangle for PIQA. The full training set is about 80 times larger than the sample, so the absolute counts are likely higher.
 
 ## 1B-token ablation sweep
 
@@ -168,7 +177,7 @@ One standard error is about 0.45 points on HellaSwag, 1.0 on ARC-Easy, 1.1 on PI
 - **32k vocabulary beats 16k.** alt2 is worse on WikiText (58.3 vs 57.2), val bpb and ARC-Easy. Caveat: alt2 also has 8.4M fewer unique parameters, so this compares two points on the parameter budget, not vocabulary size at fixed parameters.
 - **Within noise, not adopted:** XSA, NorMuon with cautious weight decay, the DCLM-heavier mix, layer sharing (alt1, which also trains at 25% lower throughput), and Muon lr x2. XSA and NorMuon each improved WikiText perplexity by about 1.2 over baseline, but value residual improved it by 3.2, and we chose not to stack unverified changes into a single 20B run.
 - **NorMuon at modded-nanogpt's record settings (lr 0.023, wd 1.2) is worse here** (val bpb 1.1336, WikiText ppl 61.7). Weight decay of 1.2 is tuned for much shorter runs.
-- **Not run:** `sweep_A_anneal_wiki` (the anneal with 5% decontaminated Wikipedia used by both main runs). Adding Wikipedia to the anneal is therefore untested at 1B.
+- **Still running when this was written:** `sweep_A_anneal_wiki`, the anneal with 5% decontaminated Wikipedia that both main runs use. It was launched alongside the main runs, so it could not inform them: {{ANNEAL_WIKI_RESULT}}.
 
 ## Reproduction
 
@@ -203,13 +212,13 @@ uv run modal run --detach modal_data.py::decontam_bench             # benchmark 
 
 ```bash
 uv run modal run modal_train.py::smoke --model A --minutes 5        # throughput and memory check
-uv run modal run --detach modal_train.py::launch --group sweep      # all 1B sweep arms in parallel
+uv run modal run --detach modal_train.py::launch --group sweep      # all 12 sweep arms in parallel
 uv run modal run --detach modal_train.py::launch --group sweep_A,sweep_A_vres   # or any subset
 uv run modal run --detach modal_train.py::launch --group main       # main_vres_anneal and main_vres_mild
 uv run modal run modal_train.py::status                             # progress of every run
 ```
 
-`launch` spawns a driver on Modal that retries a failed run up to 3 times. Each retry resumes from that run's latest checkpoint, so the local client can exit.
+The `sweep` group is every `sweep_*` entry in `RUNS`, which includes `sweep_A_anneal_wiki` on top of the 11 arms in the table. `launch` spawns a driver on Modal that retries a failed run up to 3 times. Each retry resumes from that run's latest checkpoint, so the local client can exit.
 
 ### Evaluation (Modal L4)
 
@@ -219,13 +228,13 @@ uv run modal run modal_eval.py::main --run main_vres_anneal         # final and 
 uv run modal run modal_eval.py::main --run main_vres_mild
 ```
 
-Each command prints a results table and writes `{run}/evals/{variant}.json` to the `gibc-runs` volume. `eval_sweep` without `--limit 0` scores only the first 1,000 examples per task, which is a quick check, not a result.
+Each command prints a results table and writes `{run}/evals/{variant}.json` to the `gibc-runs` volume. `eval_sweep` without `--limit 0` scores only the first 1,000 examples per task, which is a quick check, not a result. It covers every `sweep_*` run; pass `--runs a,b` for a subset.
 
 ### Plots and demo (local)
 
 ```bash
 uv run modal volume get gibc-runs sweep_A/log.jsonl results/sweep_1B/logs/sweep_A/log.jsonl   # per run
-uv run python scripts/plot_curves.py results/sweep_1B/logs/*/log.jsonl   # writes results/{train_loss,val_bpb,tok_per_s}.png
+uv run python scripts/plot_curves.py results/sweep_1B/logs/*/log.jsonl   # writes results/{train_loss,val_bpb,tok_per_s}.png; the sweep's copies are in results/sweep_1B/
 
 uv run modal volume get gibc-runs {{MAIN_SUBMITTED_RUN}}/final.pt runs/final.pt
 uv run modal volume get gibc-data tok/tok32k/tokenizer.json runs/tokenizer.json
@@ -234,7 +243,7 @@ uv run python scripts/demo.py --ckpt runs/final.pt --tok runs/tokenizer.json \
 uv run python scripts/demo.py --ckpt runs/final.pt --tok runs/tokenizer.json -i   # interactive
 ```
 
-`demo.py` runs on a laptop (Apple MPS or CPU) with temperature 0.8 and top-k 50 by default.
+`demo.py` runs on a laptop (Apple MPS or CPU) with temperature 0.8, top-k 50 and up to 200 new tokens by default (`--temperature 0` is greedy). Samples from the 1B-token `sweep_A_vres` checkpoint are in [`results/samples/sweep_A_vres_1B.md`](results/samples/sweep_A_vres_1B.md).
 
 ## Hardware, time and compute
 
@@ -242,10 +251,10 @@ uv run python scripts/demo.py --ckpt runs/final.pt --tok runs/tokenizer.json -i 
 |---|---|---|
 | Tokenizer training and tokenization | Modal CPU containers (up to 32 x 8 vCPU in parallel) | {{DATA_WALLCLOCK}} |
 | 1B sweep, 11 arms | 1 x NVIDIA H100 80GB per arm | 21-32 min per arm; 4.81 H100-hours total |
-| Main runs, 20B tokens each | 1 x NVIDIA H100 80GB per run | about 6.5 h each; {{MAIN_ANNEAL_GPU_HOURS}} + {{MAIN_MILD_GPU_HOURS}} H100-hours |
+| Main runs, 20B tokens each | 1 x NVIDIA H100 80GB per run | about 8 h each (projected); {{MAIN_ANNEAL_GPU_HOURS}} + {{MAIN_MILD_GPU_HOURS}} H100-hours measured |
 | Evaluation | 1 x NVIDIA L4 24GB | 2.2-3.4 min per model (full benchmarks + both WikiText variants) |
 
-Measured training throughput (median tokens/s over each run's log, first 50 steps excluded): 845k for Config A, 800k with value residual, 632k for the weight-shared alt1, 963k for the 16k-vocabulary alt2. Per-arm figures are in `eval_table.csv`.
+Measured training throughput (median tokens/s over each run's log, first 50 steps excluded): 845k for Config A, 800k with value residual, 632k for the weight-shared alt1, 963k for the 16k-vocabulary alt2. Per-arm figures are in `eval_table.csv`. The main runs train at about 830k tokens/s (0.63 s per step) and pause about 37 s for each validation pass every 250 steps, which puts a 38,146-step run at about 8.2 hours of wall-clock.
 
 Approximate training compute uses 6·N·D with N = 49.8M (the tied head's matmul costs as much as a separate head would), plus about 15% for causal attention at 1,024 context: roughly 3.4e17 FLOPs per 1B-token sweep arm and 6.9e18 FLOPs per 20B-token main run. At 800-845k tokens/s that is about 27-29% of the H100's dense bf16 peak. Total project compute: {{TOTAL_GPU_HOURS}} H100-hours for training (sweep plus main runs, including smoke tests) and {{TOTAL_EVAL_HOURS}} L4-hours for evaluation.
 
@@ -280,10 +289,15 @@ This project was built with AI coding assistants, and we want to be plain about 
 
 The model itself is trained from scratch. No AI model's weights, outputs or generated text went into its training data.
 
+## Built with
+
+PyTorch 2.11 (including `torch.optim.Muon`), Hugging Face `tokenizers`, `transformers` and `huggingface_hub`, lm-evaluation-harness 0.4.13, PyArrow, NumPy, Matplotlib, uv, and Modal (NVIDIA H100 80GB for training, NVIDIA L4 for evaluation, CPU containers for data). Code was written with Claude Code. The training recipe and the token-shard format follow modded-nanogpt (see [Citations](#citations)).
+
 ## Limitations
 
 - **Single seed, short sweep.** Ablations are single-seed 1B-token runs; benchmark differences under about 2 points are noise, and conclusions at 1B tokens may not hold at 20B.
-- **Untested combination.** Value residual and the Wikipedia anneal were each tested alone or not at all at 1B (`sweep_A_anneal_wiki` did not run). The main runs combine them.
+- **Untested combination.** The main runs combine value residual with the Wikipedia anneal. Neither the combination nor the Wikipedia anneal alone had a 1B result before the main runs started.
+- **Main runs are not a clean A/B.** Besides the anneal mix, the two main runs read FineWeb-Edu and DCLM shards in different orders (see [Data mixes](#data-mixes)), so a small difference between them may come from data order rather than the anneal.
 - **Parameter-count convention.** The model is under 50M with the tied embedding and head counted once, as one trainable tensor. It is 66.6M if the tied matrix is counted twice (see [Parameter count](#parameter-count)).
 - **Benchmarks are not decontaminated.** Only WikiText-103 is filtered from training data; the four multiple-choice benchmarks are measured for overlap but not filtered.
 - **Small-model benchmark scores.** At this scale HellaSwag and WinoGrande sit only a few points above chance (25% and 50%), so small differences in those two carry little information.

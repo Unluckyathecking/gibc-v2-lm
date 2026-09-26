@@ -5,7 +5,7 @@ Screen recording with voice-over. Times are cumulative targets. Anything in `{{.
 ## 0:00-0:20 What this is
 
 - On screen: README title and the headline results table.
-- Say: a 49.8M-parameter language model trained from scratch on 20B tokens of openly licensed text, with our own tokenizer, on one H100 in about 6.5 hours. It scores {{HEADLINE_ONE_LINE}} on HellaSwag, ARC-Easy, PIQA and WinoGrande, and has WikiText-103 perplexity {{MAIN_LMWT_WPPL}}.
+- Say: a 49.8M-parameter language model trained from scratch on 20B tokens of openly licensed text, with our own tokenizer, on one H100 in about 8 hours. It scores {{HEADLINE_ONE_LINE}} on HellaSwag, ARC-Easy, PIQA and WinoGrande, and has WikiText-103 perplexity {{MAIN_LMWT_WPPL}}.
 
 ## 0:20-1:05 Architecture and the parameter budget
 
@@ -25,12 +25,12 @@ Screen recording with voice-over. Times are cumulative targets. Anything in `{{.
 
 - On screen: the data table with licences, then the decontamination section.
 - Say: FineWeb-Edu, DCLM, FineMath, FinePDFs and Wikipedia, all public and permissively or share-alike licensed; no synthetic data and no pretrained weights.
-- Say: WikiText-103 comes from Wikipedia and is mirrored on the web. Before filtering, 4.96% of its test 13-grams were in a training sample. We drop every document sharing any 13-gram with WikiText validation or test, and Wikipedia articles by title: {{DECONTAM_DROPPED_NGRAM_TOTAL}} documents in total.
+- Say: WikiText-103 comes from Wikipedia and is mirrored on the web. Before filtering, 4.96% of its test 13-grams were in a training sample. We drop every document sharing any 13-gram with WikiText validation or test, and Wikipedia articles by title: 4,969 documents by 13-gram and 16 by title.
 
 ## 2:15-2:50 Main-run curves and final numbers
 
 - On screen: main-run training loss and val bpb curves ({{MAIN_CURVES_PNG}}), with the point where the anneal starts at 13B tokens marked.
-- Say: both runs share the first 65% of training and differ only in the anneal mix.
+- Say: both runs use the same recipe for the first 65% of training and differ in the anneal mix.
 - On screen: headline table. Read the submitted model's numbers: {{MAIN_SUBMITTED_RUN}}, HellaSwag {{...}}, ARC-Easy {{...}}, PIQA {{...}}, WinoGrande {{...}}, WikiText {{...}}.
 - Say: evaluation uses lm-evaluation-harness 0.4.13, zero-shot, on the full sets. The command is `modal run modal_eval.py::main --run ...`.
 

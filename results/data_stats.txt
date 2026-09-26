@@ -1,15 +1,15 @@
-# tok32k shards after WikiText-103 val+test 13-gram filtering (2026-09-26). From `modal run modal_data.py::check --tok tok32k`.
-source    split shards        tokens  docs       bytes/token  dropped_title  dropped_ngram
-fwedu     train    99  9,000,016,745  8,754,965  4.614        0              2,762
-fwedu     val       6      5,356,713      4,950  4.667        0              0
-fwedu_hq  train    61  5,000,000,065  4,633,730  4.656        0              420
-fwedu_hq  val       6      5,327,076      4,684  4.693        0              0
-dclm      train    68  4,600,374,094  3,657,618  4.374        0              388
-dclm      val       6      5,605,250      4,606  4.460        0              0
-finemath  train    36  2,400,216,860  1,634,205  3.458        0              6
-finemath  val       8      7,246,138      5,082  3.451        0              0
-finepdfs  train     7    700,075,603    120,806  4.157        0              8
-finepdfs  val       7      6,446,200      1,490  3.881        0              0
-wiki      train     9    600,000,319    645,144  4.065        16             1,107
-wiki      val       7      6,040,105      5,426  4.139        0              18
-# total train tokens 22,300,683,686; total docs dropped by 13-gram overlap 4,709 (+16 by title)
+# tok32k shards after WikiText-103 val+test 13-gram filtering (final, 2026-09-26). From: modal run modal_data.py::check --tok tok32k
+source    split shards        tokens          docs  bytes/token  dropped_title  dropped_ngram
+dclm      train shards=  77 tokens= 5,200,000,931 target= 5,200,000,000 (100.0%) docs=  4,137,506 bytes/token=4.376 dropped_title=0 dropped_ngram=424
+dclm      val   shards=   6 tokens=     5,605,250 target=     5,000,000 (112.1%) docs=      4,606 bytes/token=4.460 dropped_title=0 dropped_ngram=0
+finemath  train shards=  36 tokens= 2,400,216,860 target= 2,400,000,000 (100.0%) docs=  1,634,205 bytes/token=3.458 dropped_title=0 dropped_ngram=6
+finemath  val   shards=   8 tokens=     7,246,138 target=     5,000,000 (144.9%) docs=      5,082 bytes/token=3.451 dropped_title=0 dropped_ngram=0
+finepdfs  train shards=   7 tokens=   700,075,603 target=   700,000,000 (100.0%) docs=    120,806 bytes/token=4.157 dropped_title=0 dropped_ngram=8
+finepdfs  val   shards=   7 tokens=     6,446,200 target=     5,000,000 (128.9%) docs=      1,490 bytes/token=3.881 dropped_title=0 dropped_ngram=0
+fwedu     train shards= 108 tokens= 9,800,000,409 target= 9,800,000,000 (100.0%) docs=  9,548,208 bytes/token=4.615 dropped_title=0 dropped_ngram=2,986
+fwedu     val   shards=   6 tokens=     5,356,713 target=     5,000,000 (107.1%) docs=      4,950 bytes/token=4.667 dropped_title=0 dropped_ngram=0
+fwedu_hq  train shards=  61 tokens= 5,000,000,065 target= 5,000,000,000 (100.0%) docs=  4,633,730 bytes/token=4.656 dropped_title=0 dropped_ngram=420
+fwedu_hq  val   shards=   6 tokens=     5,327,076 target=     5,000,000 (106.5%) docs=      4,684 bytes/token=4.693 dropped_title=0 dropped_ngram=0
+wiki      train shards=   9 tokens=   600,000,319 target=   600,000,000 (100.0%) docs=    645,144 bytes/token=4.065 dropped_title=16 dropped_ngram=1,107
+wiki      val   shards=   7 tokens=     6,040,105 target=     5,000,000 (120.8%) docs=      5,426 bytes/token=4.139 dropped_title=0 dropped_ngram=18
+# total train tokens 23,700,294,187; docs dropped by 13-gram overlap: 4,951 train + 18 val = 4,969; plus 16 Wikipedia articles by title
