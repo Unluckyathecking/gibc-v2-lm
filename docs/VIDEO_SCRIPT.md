@@ -14,6 +14,8 @@ This samples the demo prompts from the checkpoint, synthesises the narration wit
 
 The voice is `voice` in `script.json` (default `bf_emma`, British female; `speed` 1.0). Override it with `--voice`: British `bf_emma`, `bf_isabella`, `bm_george`, `bm_lewis`, or American `af_heart`, `am_michael` (the first letter picks the accent; full list on the model card). To judge a voice quickly, `--sample --voice bm_george` renders only the first scene to `video/voice_sample.mp4` in about 10 seconds. `--tts say` falls back to macOS `say`, using `say_voice` and `rate` from `script.json` (or `--voice Daniel`).
 
+`--tts openrouter --model <id> --voice <name> [--style "<prompt>"]` narrates through an OpenRouter TTS model instead, one request per scene (MP3, decoded with ffmpeg), reading `OPENROUTER_API_KEY` from the environment; the SDK retries 429 and 5xx responses and the script prints each request's cost. `--style` reaches Google Gemini TTS (as `speech_metadata.style`) and OpenAI TTS (as `instructions`) models and is ignored for others. With `--sample` the raw MP3 is kept next to the clip. Scene-1 comparison clips and the command that renders them are in `video/voice_samples/`.
+
 The `values` block at the top of `video/script.json` holds the final numbers for the submitted model, `main_vres_anneal` (final weights): run name, benchmark scores, WikiText perplexity, val bits/byte, GPU hours, weights variant, a one-sentence remark and the demo checkpoint label. To change them, edit that block and rerun the command. The script lists any `[FINAL` placeholder still left when it finishes. `pronounce` maps written terms to how the voice should say them; captions keep the written form.
 
 ## Original outline

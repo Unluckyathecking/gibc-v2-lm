@@ -21,6 +21,7 @@ dev = [
     "kokoro>=0.9.4",        # neural TTS for the demo video narration (scripts/make_video.py)
     # spaCy model kokoro's G2P needs; pinned by URL because spaCy's own downloader fails under uv
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+    "openai>=3.19.2",       # OpenRouter TTS backend for the video narration (--tts openrouter)
 ]
 
 [build-system]

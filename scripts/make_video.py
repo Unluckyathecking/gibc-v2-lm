@@ -5,9 +5,12 @@ Usage:
   uv run python scripts/make_video.py --ckpt ... --tok ... --script video/script.json \\
       --out video/gibc_demo.mp4 [--voice bm_george] [--tts say --voice Daniel] [--reuse-demo]
   uv run python scripts/make_video.py --ckpt ... --tok ... --sample --voice af_heart
+  uv run python scripts/make_video.py --ckpt ... --tok ... --tts openrouter \\
+      --model google/gemini-3.8-flash-tts --voice Charon --style "Read in a calm ..."
 
 Pipeline: substitute {{KEY}} values into script.json; synthesise each narration
-sentence with Kokoro-82M (local neural TTS, default) or macOS `say`; render one
+sentence with Kokoro-82M (local neural TTS, default) or macOS `say`, or each scene
+with an OpenRouter TTS model (needs OPENROUTER_API_KEY; MP3 decoded by ffmpeg); render one
 1920x1080 slide per scene with PIL; run scripts/demo.py's sampler on the demo prompts
 and animate the output as a typewriter; stream every frame into one ffmpeg process with
 the concatenated narration, loudness-normalised to -16 LUFS.
@@ -21,6 +24,7 @@ import bisect
 import concurrent.futures
 import contextlib
 import io
+import itertools
 import json
 import math
 import os
@@ -43,6 +47,7 @@ FADE_FRAMES = 8             # cross-fade into each scene
 TYPE_CPS = 40               # typewriter speed, characters per second
 CAPTION_CHARS = 84          # max characters per subtitle cue
 MARGIN = 110
+OPENROUTER_URL = "https://openrouter.ai/api/v1"
 
 THEME = {
     "bg": (247, 246, 242), "fg": (28, 30, 34), "muted": (104, 108, 116),
@@ -130,11 +135,79 @@ def kokoro_to_pcm(texts: list[str], voice: str, speed: float) -> list[bytes]:
     return out
 
 
-def synthesise(script: dict, workdir: str, tts: str) -> list[list[tuple[str, bytes]]]:
+def openrouter_style(model: str, style: str | None) -> dict:
+    """Provider passthrough carrying a style prompt, per OpenRouter's TTS guide; {} if unsupported."""
+    if not style:
+        return {}
+    if model.startswith("google/"):
+        return {"provider": {"options": {"google-ai-studio": {"speech_metadata": {"style": style}}}}}
+    if model.startswith("openai/"):
+        return {"provider": {"options": {"openai": {"instructions": style}}}}
+    print(f"note: no style prompt for {model} via OpenRouter; --style ignored", flush=True)
+    return {}
+
+
+def openrouter_cost(key: str, gen_id: str | None) -> float | None:
+    """Look up a generation's cost; the stats lag the request by a moment, so poll briefly."""
+    import time
+
+    import httpx
+    for _ in range(6) if gen_id else ():
+        time.sleep(1.5)
+        r = httpx.get(f"{OPENROUTER_URL}/generation", params={"id": gen_id},
+                      headers={"Authorization": f"Bearer {key}"}, timeout=30)
+        if r.status_code == 200:
+            return r.json()["data"].get("total_cost")
+    return None
+
+
+def openrouter_to_pcm(texts: list[str], model: str, voice: str | None, style: str | None,
+                      workdir: str) -> list[bytes]:
+    """One OpenRouter /audio/speech request per text (MP3, kept as workdir/scene_NN.mp3),
+    decoded with ffmpeg to mono 16-bit PCM at SR. Reads OPENROUTER_API_KEY from the environment."""
+    from openai import APIStatusError, OpenAI, omit
+    key = os.environ.get("OPENROUTER_API_KEY") or sys.exit("OPENROUTER_API_KEY is not set")
+    client = OpenAI(base_url=OPENROUTER_URL, api_key=key, max_retries=5)  # SDK retries 429/5xx with backoff
+    extra, out, total = openrouter_style(model, style), [], 0.0
+    for i, text in enumerate(texts):
+        try:
+            r = client.audio.speech.with_raw_response.create(
+                model=model, voice=voice or omit, input=text, response_format="mp3", extra_body=extra or None)
+        except APIStatusError as e:  # 402 no credits, 404 unknown model, ...; retries already spent
+            sys.exit(f"OpenRouter {model}: HTTP {e.status_code}: {e.message}")
+        mp3 = r.content
+        with open(os.path.join(workdir, f"scene_{i:02d}.mp3"), "wb") as f:
+            f.write(mp3)
+        cost = openrouter_cost(key, r.headers.get("x-generation-id"))
+        total += cost or 0.0
+        print(f"  scene {i + 1}: {len(mp3) / 1e3:.0f} kB mp3, cost "
+              f"{'unknown' if cost is None else f'${cost:.5f}'}", flush=True)
+        out.append(subprocess.run(["ffmpeg", "-v", "error", "-i", "pipe:0", "-f", "s16le", "-ac", "1",
+                                   "-ar", str(SR), "pipe:1"], input=mp3, capture_output=True, check=True).stdout)
+    print(f"openrouter cost: ${total:.5f} ({model})", flush=True)
+    return out
+
+
+def split_pcm(pcm: bytes, parts: list[str]) -> list[bytes]:
+    """Cut one scene's PCM into per-sentence pieces in proportion to their length (for captions)."""
+    n, total, cuts, acc = len(pcm) // 2, sum(len(p) for p in parts), [0], 0
+    for p in parts:
+        acc += len(p)
+        cuts.append(round(n * acc / total))
+    return [pcm[2 * a:2 * b] for a, b in itertools.pairwise(cuts)]
+
+
+def synthesise(script: dict, workdir: str, tts: str, model: str | None = None,
+               style: str | None = None) -> list[list[tuple[str, bytes]]]:
     """Per scene, a list of (caption text, pcm) per sentence."""
     voice, pron = script["voice"], script.get("pronounce", {})
     jobs = [(si, ti, s) for si, sc in enumerate(script["scenes"])
             for ti, s in enumerate(sentences(sc["narration"]))]
+    if tts == "openrouter":  # one request per scene keeps the prosody continuous
+        scene_pcm = openrouter_to_pcm([spoken(sc["narration"], pron) for sc in script["scenes"]],
+                                      model, voice, style, workdir)
+        return [list(zip(ss, split_pcm(pcm, ss))) for pcm, ss in
+                zip(scene_pcm, (sentences(sc["narration"]) for sc in script["scenes"]))]
     if tts == "kokoro":
         pcms = kokoro_to_pcm([spoken(s, pron) for _, _, s in jobs], voice, script.get("speed", 1.0))
     else:  # `say` is single-threaded per call, so run sentences in parallel
@@ -477,15 +550,19 @@ def main() -> None:
     ap.add_argument("--tok", required=True, help="tokenizer.json")
     ap.add_argument("--script", default=os.path.join(ROOT, "video", "script.json"))
     ap.add_argument("--out", help="default video/gibc_demo.mp4, or video/voice_sample.mp4 with --sample")
-    ap.add_argument("--tts", choices=["kokoro", "say"], default="kokoro", help="narration backend")
+    ap.add_argument("--tts", choices=["kokoro", "say", "openrouter"], default="kokoro", help="narration backend")
     ap.add_argument("--voice", help="override script.json's voice (kokoro, e.g. bf_emma, bm_george, af_heart) "
-                                    "or say_voice (say, see `say -v '?'`)")
+                                    "or say_voice (say, see `say -v '?'`); openrouter: the model's voice id")
+    ap.add_argument("--model", help="openrouter TTS model id, e.g. google/gemini-3.8-flash-tts")
+    ap.add_argument("--style", help="openrouter style prompt (Google Gemini and OpenAI TTS models only)")
     ap.add_argument("--reuse-demo", action="store_true", help="reuse video/demo_output.json, skip sampling")
     ap.add_argument("--sample", action="store_true",
                     help="render only the first scene, to judge a voice (slides and captions.srt untouched)")
     args = ap.parse_args()
     args.out = args.out or os.path.join(ROOT, "video", "voice_sample.mp4" if args.sample else "gibc_demo.mp4")
-    needed = ("ffmpeg", "ffprobe") + (("say",) if args.tts == "say" else ("espeak-ng",))
+    if args.tts == "openrouter" and not args.model:
+        sys.exit("--tts openrouter needs --model")
+    needed = ("ffmpeg", "ffprobe") + {"say": ("say",), "kokoro": ("espeak-ng",)}.get(args.tts, ())
     for tool in needed:
         if not shutil.which(tool):
             sys.exit(f"{tool} not found on PATH")
@@ -493,7 +570,7 @@ def main() -> None:
     script = load_script(args.script)
     if args.sample:
         script["scenes"] = script["scenes"][:1]
-    default_voice = script.get("voice", "bf_emma") if args.tts == "kokoro" else script.get("say_voice", "Samantha")
+    default_voice = {"kokoro": script.get("voice", "bf_emma"), "say": script.get("say_voice", "Samantha")}.get(args.tts)
     script["voice"] = args.voice or default_voice
     vdir = os.path.dirname(os.path.abspath(args.out))
     slide_dir = os.path.join(vdir, "slides")
@@ -512,8 +589,11 @@ def main() -> None:
         with open(demo_json, "w") as f:
             json.dump({"ckpt": args.ckpt, "demo": script["demo"], "samples": samples}, f, indent=2)
 
-    print(f"synthesising narration with {args.tts}, voice {script['voice']} ...", flush=True)
-    speech = synthesise(script, work, args.tts)
+    print(f"synthesising narration with {args.tts}{f' {args.model}' if args.model else ''}, "
+          f"voice {script['voice'] or 'default'} ...", flush=True)
+    speech = synthesise(script, work, args.tts, args.model, args.style)
+    if args.sample and args.tts == "openrouter":  # keep the untouched MP3 next to the clip
+        shutil.copy(os.path.join(work, "scene_00.mp3"), os.path.splitext(args.out)[0] + ".mp3")
 
     scenes, n_total = script["scenes"], len(script["scenes"])
     audio, cues, plan, t0 = bytearray(), [], [], 0.0
@@ -556,7 +636,7 @@ def main() -> None:
         w.setsampwidth(2)
         w.setframerate(SR)
         w.writeframes(bytes(audio))
-    srt_path = os.path.join(vdir, "voice_sample.srt" if args.sample else "captions.srt")
+    srt_path = os.path.splitext(args.out)[0] + ".srt" if args.sample else os.path.join(vdir, "captions.srt")
     with open(srt_path, "w") as f:
         for i, (a, b, text) in enumerate(cues, 1):
             f.write(f"{i}\n{srt_time(a)} --> {srt_time(b)}\n{text}\n\n")
