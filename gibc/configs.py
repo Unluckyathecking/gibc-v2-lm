@@ -74,6 +74,8 @@ MIX_ANNEAL = {"fwedu_hq": 0.65, "finemath": 0.225, "fwedu": 0.075, "dclm": 0.05}
 # Sweep variants: DCLM-heavier web split; anneal with 5% decontaminated Wikipedia.
 MIX_MAIN_DCLM40 = {"fwedu": 0.50, "dclm": 0.40, "finemath": 0.05, "finepdfs": 0.05}
 MIX_ANNEAL_WIKI = {"fwedu_hq": 0.60, "finemath": 0.225, "fwedu": 0.075, "dclm": 0.05, "wiki": 0.05}
+# Milder anneal (~35% general web) to limit the PIQA drop seen with MIX_ANNEAL in the 1B sweep.
+MIX_ANNEAL_MILD_WIKI = {"fwedu_hq": 0.40, "finemath": 0.20, "fwedu": 0.20, "dclm": 0.15, "wiki": 0.05}
 VAL_MIX = MIX_MAIN  # val bpb is reported on the main-mix val docs
 
 
@@ -170,8 +172,11 @@ RUNS = {
     # Same optimizer at modded-nanogpt's record hyperparameters (lr 0.023, wd 1.2).
     "sweep_A_normuon_rec": TrainConfig("A", SWEEP_TOKENS, opt="normuon", cautious_wd=True,
                                        muon_lr=0.023, muon_wd=1.2),
-    # Main runs are added after the sweep picks a winner and runner-up.
+    # Main runs (20B tokens): Config A + value residual, chosen from the 1B sweep; they differ in anneal strength.
+    "main_vres_anneal": TrainConfig("A_vres", 20_000_000_000, mix_anneal=dict(MIX_ANNEAL_WIKI)),
+    "main_vres_mild": TrainConfig("A_vres", 20_000_000_000, mix_anneal=dict(MIX_ANNEAL_MILD_WIKI)),
 }
+MAIN_RUNS = [name for name in RUNS if name.startswith("main_")]
 SWEEP_RUNS = [name for name in RUNS if name.startswith("sweep_")]
 
 # --- Evaluation --------------------------------------------------------------

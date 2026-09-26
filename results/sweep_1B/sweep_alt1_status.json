@@ -1,0 +1,18 @@
+{
+  "state": "done",
+  "step": 1907,
+  "total_steps": 1907,
+  "tokens_seen": 999817216,
+  "loss": 3.4546666145324707,
+  "val_bpb": 1.105443038548811,
+  "elapsed_s": 1939.3,
+  "gpu_s": 1989.8,
+  "gpu_hours": 0.553,
+  "updated": "2026-09-26T09:18:30+00:00",
+  "params": {
+    "once": 47195720,
+    "twice": 66070088,
+    "embedding": 18874368,
+    "non_embedding": 28321352
+  }
+}
