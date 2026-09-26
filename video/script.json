@@ -50,7 +50,7 @@
   "scenes": [
     {
       "id": "intro",
-      "narration": "We trained a small language model from scratch for Track 01 of the Global Innovation Build Challenge. The rules cap it at fifty million trainable parameters, and ours has 49,822,228. It learned from random weights on 20 billion tokens of openly licensed English text, with our own tokenizer, on one H100 in about eight hours.",
+      "narration": "Hi, I'm Mohammed Alibhai. For Track one of the Global Innovation Build Challenge, I trained a language model from scratch. The cap is fifty million parameters, and mine has just under that. It learned from random weights on twenty billion tokens of openly licensed English text, with my own tokenizer, on one H one hundred in about eight hours.",
       "slide": {
         "kicker": "GIBC V2 · Track 01 · Foundational LLM",
         "title": "A 49.8M-parameter language model, trained from scratch",
@@ -70,7 +70,7 @@
     },
     {
       "id": "architecture",
-      "narration": "The model is a 14-layer transformer, 512 wide, with grouped-query attention, rotary position embeddings and QK-norm, and a squared ReLU in the MLP. U-net style skips connect early layers to late ones, and a value residual lets every layer reuse the first layer's values. The 32k embedding is tied to the output head and takes a third of the budget. Counted once, as the one tensor the optimizer updates, the total is 49,822,228. Counted twice, it is 66.6 million. We report both.",
+      "narration": "So, the model. It's a fourteen-layer transformer, five hundred and twelve wide, with grouped-query attention, rotary embeddings, Q-K norm, and a squared ReLU. U-net style skips connect early layers to late ones, and a value residual lets every layer reuse the first layer's values. The thirty-two-thousand-entry embedding is shared with the output head and takes a third of the budget. Counted once, as one tensor, the total is forty-nine point eight million. Counted twice, it's sixty-six point six million. I report both.",
       "slide": {
         "kicker": "Architecture",
         "title": "14 layers, width 512, tied 32k embedding",
@@ -142,7 +142,7 @@
     },
     {
       "id": "recipe",
-      "narration": "Training follows the modded-nanogpt speedrun recipe. Muon updates the matrices inside the blocks, and AdamW updates the embedding and the scalars. The learning rate warms up, holds, then decays to zero over the last 35 percent of training, and at that point the data switches to higher quality sources. We also tried averaging the last few snapshots. It made no difference, so we report the final weights.",
+      "narration": "Next, training. I used the modded nano-GPT speedrun recipe. Muon (MEW-on) updates the block matrices, and Adam W handles the embedding and scalars. The learning rate warms up, holds, then decays to zero over the last thirty-five percent, when the data switches to higher-quality sources. Averaging the last few snapshots made no difference, so I report the final weights. Near the end, both runs stopped when I hit my cloud spending limit. They resumed exactly from their last checkpoint, optimizer, random state and data position included.",
       "slide": {
         "kicker": "Training recipe",
         "title": "Muon + AdamW, warmup-stable-decay, quality anneal",
@@ -163,7 +163,7 @@
     },
     {
       "id": "data",
-      "narration": "The data is FineWeb-Edu, DCLM, FineMath, FinePDFs and Wikipedia, all public and openly licensed. WikiText-103 is built from Wikipedia, which is copied all over the web. Before filtering, about five percent of its test 13-grams appeared in a sample of our training data. So we drop every document sharing any 13-gram with WikiText validation or test, 4,969 documents in all, plus 16 Wikipedia articles by title. The multiple-choice benchmarks are not filtered, but their measured overlap is a handful of items.",
+      "narration": "On to the data: FineWeb-Edu, D-C-L-M, FineMath, FinePDFs and Wikipedia, all openly licensed, none of it intentionally synthetic. WikiText one-oh-three comes from Wikipedia, which is copied all over the web. Before filtering, about five percent of its test thirteen-grams turned up in our training sample. So we drop every document sharing a thirteen-gram with WikiText validation or test, just under five thousand, plus sixteen Wikipedia articles by title. The multiple-choice benchmarks aren't filtered, but the measured overlap is a handful of items.",
       "slide": {
         "kicker": "Data and decontamination",
         "title": "Open data, filtered against WikiText-103",
@@ -247,7 +247,7 @@
     },
     {
       "id": "sweep",
-      "narration": "Before spending eight GPU-hours on a main run, we ran twelve one-billion-token experiments, each changing one thing. Muon beat AdamW by a wide margin. The value residual gave the biggest perplexity gain, 57.2 down to 54.0, for 13 extra parameters, so we kept it. The quality anneal raised ARC-Easy but lowered PIQA, so our two main runs try two strengths. Each arm is one seed, so benchmark gaps under about two points are noise, and we leaned on perplexity to decide.",
+      "narration": "Before spending eight GPU hours on a main run, we ran twelve one-billion-token experiments, each changing one thing. Muon beat Adam W by a wide margin. The value residual gave the biggest perplexity gain, fifty-seven down to fifty-four, for thirteen extra parameters, so I kept it. The quality anneal raised ARC-Easy but lowered PIQA (PIE-kah), so my two main runs try two strengths. With one seed each, gaps under two points are noise, so I leaned on perplexity.",
       "slide": {
         "kicker": "1B-token ablation sweep",
         "title": "12 arms, one change each, one seed",
@@ -330,7 +330,7 @@
     },
     {
       "id": "results",
-      "narration": "Here are the final numbers for the submitted model, {{RUN}}, trained on the full 20 billion tokens. HellaSwag, {{HS}} percent. ARC-Easy, {{ARCE}} percent. PIQA, {{PIQA}} percent. WinoGrande, {{WINO}} percent. WikiText-103 perplexity, {{WT_LMEVAL}}. {{FINAL_REMARK}} All benchmarks are zero-shot, on the full evaluation sets, with lm-evaluation-harness.",
+      "narration": "These are the submitted model's final numbers, after all twenty billion tokens. HellaSwag, about thirty-two percent. ARC-Easy, about fifty-five. PIQA, about sixty-two. WinoGrande, about fifty-two, close to chance. WikiText perplexity, about thirty-nine. Against the one-billion-token run, ARC-Easy is up eight points, and perplexity fell from sixty-one to thirty-nine. The PIQA drop from the strong anneal didn't show up at twenty billion, so I submitted that run. All zero-shot, on the full evaluation sets, with the L-M evaluation harness.",
       "slide": {
         "kicker": "Final results",
         "title": "Submitted model: {{RUN}}",
@@ -392,7 +392,7 @@
     {
       "id": "demo",
       "type": "demo",
-      "narration": "Now the model itself, running locally on a laptop. We give it three prompts and let it continue. The text is grammatical and keeps the register of the prompt. It also gets facts wrong and repeats itself, which is what we expect at fifty million parameters.",
+      "narration": "And now the model itself, running locally on my laptop. I give it three prompts and let it continue. It's grammatical and keeps the tone of the prompt. It also gets facts wrong and repeats itself, and in my other samples it couldn't do a simple apples word problem. That's what I'd expect at fifty million parameters.",
       "slide": {
         "kicker": "Live generation",
         "title": "Sampling on a laptop (temperature 0.8, top-k 50)",
@@ -401,7 +401,7 @@
     },
     {
       "id": "close",
-      "narration": "Everything needed to reproduce this is in the repository. uv installs the pinned environment, and the Modal scripts build the data, train and evaluate. On AI use: this project was built with Claude Code agents under human direction. The agents wrote the code, ran the experiments and drafted the docs. Mohammed Alibhai set the goals, made the decisions, reviewed the work and paid for the compute. Thanks for watching.",
+      "narration": "Finally, everything needed to reproduce this is in the repository. U-V installs the pinned environment, and the Modal scripts build the data, train and evaluate. On AI use: I built this with Claude Code agents under my direction. The agents wrote the code, ran the experiments and drafted the docs. I set the goals, made the decisions, reviewed the work and paid for compute, and I can explain the code and design choices. Thanks for watching.",
       "slide": {
         "kicker": "Reproduce · AI use",
         "title": "How to reproduce, and who did what",

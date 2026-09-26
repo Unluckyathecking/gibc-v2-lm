@@ -54,6 +54,44 @@ Tips for a clean recording:
 - Leave a breath of silence after the countdown and at the end before pressing Space; the trim removes it, along with the click of the Space key.
 - Play each take back with P before moving on; retakes are cheap.
 
+## Script
+
+This is the narration from `video/script.json`, copied here so it can be read from paper. The JSON is the source of truth: if you edit a line there, copy it here too. Targets assume 150 words per minute. Exact figures are on the slides; the narration rounds them to what is easy to say. Brackets give pronunciation and are not read aloud.
+
+### 1. What this is (59 words, about 24 s)
+
+Hi, I'm Mohammed Alibhai. For Track one of the Global Innovation Build Challenge, I trained a language model from scratch. The cap is fifty million parameters, and mine has just under that. It learned from random weights on twenty billion tokens of openly licensed English text, with my own tokenizer, on one H one hundred in about eight hours.
+
+### 2. Architecture and the parameter budget (82 words, about 33 s)
+
+So, the model. It's a fourteen-layer transformer, five hundred and twelve wide, with grouped-query attention, rotary embeddings, Q-K norm, and a squared ReLU. U-net style skips connect early layers to late ones, and a value residual lets every layer reuse the first layer's values. The thirty-two-thousand-entry embedding is shared with the output head and takes a third of the budget. Counted once, as one tensor, the total is forty-nine point eight million. Counted twice, it's sixty-six point six million. I report both.
+
+### 3. Training recipe (86 words, about 34 s)
+
+Next, training. I used the modded nano-GPT speedrun recipe. Muon (MEW-on) updates the block matrices, and Adam W handles the embedding and scalars. The learning rate warms up, holds, then decays to zero over the last thirty-five percent, when the data switches to higher-quality sources. Averaging the last few snapshots made no difference, so I report the final weights. Near the end, both runs stopped when I hit my cloud spending limit. They resumed exactly from their last checkpoint, optimizer, random state and data position included.
+
+### 4. Data and decontamination (82 words, about 33 s)
+
+On to the data: FineWeb-Edu, D-C-L-M, FineMath, FinePDFs and Wikipedia, all openly licensed, none of it intentionally synthetic. WikiText one-oh-three comes from Wikipedia, which is copied all over the web. Before filtering, about five percent of its test thirteen-grams turned up in our training sample. So we drop every document sharing a thirteen-gram with WikiText validation or test, just under five thousand, plus sixteen Wikipedia articles by title. The multiple-choice benchmarks aren't filtered, but the measured overlap is a handful of items.
+
+### 5. The 1B-token sweep (78 words, about 31 s)
+
+Before spending eight GPU hours on a main run, we ran twelve one-billion-token experiments, each changing one thing. Muon beat Adam W by a wide margin. The value residual gave the biggest perplexity gain, fifty-seven down to fifty-four, for thirteen extra parameters, so I kept it. The quality anneal raised ARC-Easy but lowered PIQA (PIE-kah), so my two main runs try two strengths. With one seed each, gaps under two points are noise, so I leaned on perplexity.
+
+### 6. Final results (78 words, about 31 s)
+
+These are the submitted model's final numbers, after all twenty billion tokens. HellaSwag, about thirty-two percent. ARC-Easy, about fifty-five. PIQA, about sixty-two. WinoGrande, about fifty-two, close to chance. WikiText perplexity, about thirty-nine. Against the one-billion-token run, ARC-Easy is up eight points, and perplexity fell from sixty-one to thirty-nine. The PIQA drop from the strong anneal didn't show up at twenty billion, so I submitted that run. All zero-shot, on the full evaluation sets, with the L-M evaluation harness.
+
+### 7. Live generation (57 words, about 23 s)
+
+And now the model itself, running locally on my laptop. I give it three prompts and let it continue. It's grammatical and keeps the tone of the prompt. It also gets facts wrong and repeats itself, and in my other samples it couldn't do a simple apples word problem. That's what I'd expect at fifty million parameters.
+
+### 8. Reproduce and AI use (76 words, about 30 s)
+
+Finally, everything needed to reproduce this is in the repository. U-V installs the pinned environment, and the Modal scripts build the data, train and evaluate. On AI use: I built this with Claude Code agents under my direction. The agents wrote the code, ran the experiments and drafted the docs. I set the goals, made the decisions, reviewed the work and paid for compute, and I can explain the code and design choices. Thanks for watching.
+
+Total: 598 words, about 4.0 minutes at 150 words per minute.
+
 ## Original outline
 
 Screen recording with voice-over. Times are cumulative targets. The final numbers are filled in below.
