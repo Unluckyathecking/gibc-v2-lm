@@ -51,6 +51,9 @@ SOURCES = {
     "dclm": Source("mlfoundations/dclm-baseline-1.0-parquet", "filtered/**/*.parquet"),
     "finemath": Source("HuggingFaceTB/finemath", "finemath-4plus/*.parquet"),
     "finepdfs": Source("HuggingFaceFW/finepdfs", "data/eng_Latn/train/*.parquet"),
+    # English Wikipedia, used only in the anneal. WikiText-103 val/test articles are removed
+    # at tokenization time (title match + 13-gram overlap); see gibc/decontam.py.
+    "wiki": Source("wikimedia/wikipedia", "20231101.en/*.parquet"),
 }
 # fwedu and fwedu_hq must be built from disjoint parquet files, and val docs from
 # files used by neither, so no document appears in two splits.
@@ -59,7 +62,7 @@ SOURCES = {
 # main phase 65% of tokens on MIX_MAIN, decay 35% of which 87.5% is MIX_ANNEAL. Val: VAL_TOKENS_PER_SOURCE each.
 TOKEN_TARGETS = {
     "tok32k": {"fwedu": 9_000_000_000, "dclm": 4_600_000_000, "finemath": 2_400_000_000,
-               "finepdfs": 700_000_000, "fwedu_hq": 5_000_000_000},
+               "finepdfs": 700_000_000, "fwedu_hq": 5_000_000_000, "wiki": 600_000_000},
     "tok16k": {"fwedu": 720_000_000, "dclm": 360_000_000, "finemath": 60_000_000,
                "finepdfs": 60_000_000},
 }
@@ -68,6 +71,9 @@ VAL_TOKENS_PER_SOURCE = 5_000_000  # same val documents for both tokenizers
 MIX_MAIN = {"fwedu": 0.60, "dclm": 0.30, "finemath": 0.05, "finepdfs": 0.05}
 # Quality anneal used during the LR decay phase (12.5% general web kept).
 MIX_ANNEAL = {"fwedu_hq": 0.65, "finemath": 0.225, "fwedu": 0.075, "dclm": 0.05}
+# Sweep variants: DCLM-heavier web split; anneal with 5% decontaminated Wikipedia.
+MIX_MAIN_DCLM40 = {"fwedu": 0.50, "dclm": 0.40, "finemath": 0.05, "finepdfs": 0.05}
+MIX_ANNEAL_WIKI = {"fwedu_hq": 0.60, "finemath": 0.225, "fwedu": 0.075, "dclm": 0.05, "wiki": 0.05}
 VAL_MIX = MIX_MAIN  # val bpb is reported on the main-mix val docs
 
 
@@ -159,6 +165,8 @@ RUNS = {
     "sweep_A_xsa": TrainConfig("A_xsa", SWEEP_TOKENS),
     "sweep_A_vres": TrainConfig("A_vres", SWEEP_TOKENS),
     "sweep_A_normuon": TrainConfig("A", SWEEP_TOKENS, opt="normuon", cautious_wd=True),
+    "sweep_A_dclm40": TrainConfig("A", SWEEP_TOKENS, mix_main=dict(MIX_MAIN_DCLM40)),
+    "sweep_A_anneal_wiki": TrainConfig("A", SWEEP_TOKENS, mix_anneal=dict(MIX_ANNEAL_WIKI)),
     # Same optimizer at modded-nanogpt's record hyperparameters (lr 0.023, wd 1.2).
     "sweep_A_normuon_rec": TrainConfig("A", SWEEP_TOKENS, opt="normuon", cautious_wd=True,
                                        muon_lr=0.023, muon_wd=1.2),
