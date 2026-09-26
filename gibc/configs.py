@@ -63,8 +63,9 @@ SOURCES = {
 TOKEN_TARGETS = {
     "tok32k": {"fwedu": 9_800_000_000, "dclm": 5_200_000_000, "finemath": 2_400_000_000,
                "finepdfs": 700_000_000, "fwedu_hq": 5_000_000_000, "wiki": 600_000_000},
-    "tok16k": {"fwedu": 720_000_000, "dclm": 360_000_000, "finemath": 60_000_000,
-               "finepdfs": 60_000_000},
+    # tok16k: same budgets as tok32k so the alt2 insurance run (20B tokens) passes preflight.
+    "tok16k": {"fwedu": 9_800_000_000, "dclm": 5_200_000_000, "finemath": 2_400_000_000,
+               "finepdfs": 700_000_000, "fwedu_hq": 5_000_000_000, "wiki": 600_000_000},
 }
 VAL_TOKENS_PER_SOURCE = 5_000_000  # same val documents for both tokenizers
 
@@ -119,6 +120,8 @@ MODEL_CONFIGS = {
 # Variants of A used by sweep arms: A_xsa = 49,822,327 (+112 gates), A_vres = 49,822,228 (+13 scalars).
 MODEL_CONFIGS["A_xsa"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "xsa": True})
 MODEL_CONFIGS["A_vres"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "value_residual": True})
+# 16k-vocab twin of A_vres: 41,433,620 once / 49,822,228 twice, under the cap on both conventions.
+MODEL_CONFIGS["alt2_vres"] = ModelConfig(**{**MODEL_CONFIGS["alt2"].__dict__, "value_residual": True})
 PARAM_CAP = 50_000_000
 
 
@@ -175,6 +178,9 @@ RUNS = {
     # Main runs (20B tokens): Config A + value residual, chosen from the 1B sweep; they differ in anneal strength.
     "main_vres_anneal": TrainConfig("A_vres", 20_000_000_000, mix_anneal=dict(MIX_ANNEAL_WIKI)),
     "main_vres_mild": TrainConfig("A_vres", 20_000_000_000, mix_anneal=dict(MIX_ANNEAL_MILD_WIKI)),
+    # Insurance run: same recipe as main_vres_anneal with the 16k vocabulary, in case tied
+    # embeddings are counted twice toward the cap.
+    "main_alt2_vres_anneal": TrainConfig("alt2_vres", 20_000_000_000, mix_anneal=dict(MIX_ANNEAL_WIKI)),
 }
 MAIN_RUNS = [name for name in RUNS if name.startswith("main_")]
 SWEEP_RUNS = [name for name in RUNS if name.startswith("sweep_")]
