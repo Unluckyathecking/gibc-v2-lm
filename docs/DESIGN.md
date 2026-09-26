@@ -48,3 +48,11 @@ Why each part of the model and pipeline is there, and what we considered and dro
 **Raw Wikipedia, or any web data unfiltered.** WikiText-103's validation and test articles are Wikipedia articles, so including Wikipedia as-is would put the test set in the training data. The web sources contain copies too: before filtering, a 250M-token sample of our shards contained 4.96% of WikiText-103 test 13-grams, from 6 documents out of 182,375 that reproduce Wikipedia text. We drop every document in every source, training and validation, that shares any 13-gram with WikiText-103 validation or test. We also drop Wikipedia articles by title match, so a WikiText article is removed from the 2023 dump even where its text has since changed enough to share no 13-gram. Filtering by 13-gram over normalised words, rather than tokens, makes it independent of the tokenizer and of WikiText's spaced punctuation.
 
 **Filtering the multiple-choice benchmarks from training data.** We measure 13-gram overlap with HellaSwag, ARC-Easy, PIQA and WinoGrande items but do not drop documents for it. We chose to report the overlap rather than act on it; it is in the README so readers can judge.
+
+## Sponsor tooling considered and declined
+
+Adaption Labs (a GIBC sponsor) offers participants platform credits. We read its docs and did not use it:
+its AutoScientist fine-tunes pretrained models (Gemma, Llama, Qwen and others), which the rules forbid for
+this track, and its Adaptive Data recipes rephrase, augment and generate text with LLMs, which we keep out
+of the training mix to stay clear of the ban on distillation. Its dataset quality scoring has no documented
+filter-only mode, so we kept our own deduplication and 13-gram decontamination instead.
