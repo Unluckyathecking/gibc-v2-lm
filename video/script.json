@@ -247,10 +247,10 @@
     },
     {
       "id": "sweep",
-      "narration": "Before spending eight GPU-hours on a main run, we ran eleven one-billion-token experiments, each changing one thing. Muon beat AdamW by a wide margin. The value residual gave the biggest perplexity gain, 57.2 down to 54.0, for 13 extra parameters, so we kept it. The quality anneal raised ARC-Easy but lowered PIQA, so our two main runs try two strengths. Each arm is one seed, so benchmark gaps under about two points are noise, and we leaned on perplexity to decide.",
+      "narration": "Before spending eight GPU-hours on a main run, we ran twelve one-billion-token experiments, each changing one thing. Muon beat AdamW by a wide margin. The value residual gave the biggest perplexity gain, 57.2 down to 54.0, for 13 extra parameters, so we kept it. The quality anneal raised ARC-Easy but lowered PIQA, so our two main runs try two strengths. Each arm is one seed, so benchmark gaps under about two points are noise, and we leaned on perplexity to decide.",
       "slide": {
         "kicker": "1B-token ablation sweep",
-        "title": "11 arms, one change each, one seed",
+        "title": "12 arms, one change each, one seed",
         "columns": [
           [
             {

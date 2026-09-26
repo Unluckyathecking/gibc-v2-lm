@@ -157,6 +157,7 @@ Every arm is Config A (the architecture above without value residual) trained fo
 | sweep_A_lr2 | Muon lr 0.04 | 28.33 | 46.89 | 40.87 | 60.28 | 59.25 | 51.46 | 56.94 | 1.0905 | 63.68 | 1.1053 |
 | sweep_A_adamw | AdamW on all params | 27.38 | 42.55 | 37.75 | 57.67 | 56.91 | 49.49 | 88.98 | 1.2109 | 98.68 | 1.2215 |
 | sweep_A_anneal | quality anneal in decay | 28.22 | **47.98** | **43.14** | 58.81 | 58.05 | 52.72 | 58.51 | 1.0978 | 65.64 | 1.0965 |
+| sweep_A_anneal_wiki | anneal + 5% decontaminated Wikipedia | 28.66 | **48.74** | **43.73** | 59.19 | 57.51 | 50.91 | **54.70** | 1.0796 | 61.11 | 1.0953 |
 | sweep_A_dclm40 | main mix 50% FW-Edu / 40% DCLM | 28.44 | 45.92 | 40.53 | 60.07 | 58.38 | 52.41 | 56.32 | 1.0875 | 63.14 | 1.1020 |
 | sweep_alt1 | d576, 8 blocks each applied twice | 28.17 | 46.59 | 41.29 | 60.28 | 58.76 | 52.72 | 56.79 | 1.0898 | 63.47 | 1.1054 |
 | sweep_alt2 | 16k vocabulary | 28.16 | 44.15 | 39.69 | 58.00 | 58.38 | 51.62 | 58.35 | 1.0971 | 65.76 | 1.1296 |
@@ -177,7 +178,7 @@ One standard error is about 0.45 points on HellaSwag, 1.0 on ARC-Easy, 1.1 on PI
 - **32k vocabulary beats 16k.** alt2 is worse on WikiText (58.3 vs 57.2), val bpb and ARC-Easy. Caveat: alt2 also has 8.4M fewer unique parameters, so this compares two points on the parameter budget, not vocabulary size at fixed parameters.
 - **Within noise, not adopted:** XSA, NorMuon with cautious weight decay, the DCLM-heavier mix, layer sharing (alt1, which also trains at 25% lower throughput), and Muon lr x2. XSA and NorMuon each improved WikiText perplexity by about 1.2 over baseline, but value residual improved it by 3.2, and we chose not to stack unverified changes into a single 20B run.
 - **NorMuon at modded-nanogpt's record settings (lr 0.023, wd 1.2) is worse here** (val bpb 1.1336, WikiText ppl 61.7). Weight decay of 1.2 is tuned for much shorter runs.
-- **Still running when this was written:** `sweep_A_anneal_wiki`, the anneal with 5% decontaminated Wikipedia that both main runs use. It was launched alongside the main runs, so it could not inform them: {{ANNEAL_WIKI_RESULT}}.
+- **Anneal + 5% decontaminated Wikipedia: the mix both main runs use.** Adding Wikipedia to the anneal removes the anneal's perplexity penalty (WikiText ppl 58.5 -> 54.7, better than the 57.2 baseline) and gives the best ARC-Easy in the sweep (48.7). The PIQA drop remains (59.2 vs 61.5), which is what the milder anneal in the second main run hedges. This arm was launched alongside the main runs, so it confirmed rather than informed their data mix.
 
 ## Reproduction
 
