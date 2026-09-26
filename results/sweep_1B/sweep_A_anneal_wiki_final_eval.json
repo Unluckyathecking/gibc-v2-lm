@@ -1,0 +1,47 @@
+{
+  "run": "sweep_A_anneal_wiki",
+  "variant": "final",
+  "weights": [
+    "final.pt"
+  ],
+  "limit": null,
+  "lm_eval": {
+    "hellaswag/acc_norm": 0.2865962955586537,
+    "hellaswag/acc_norm_stderr": 0.004512471612415647,
+    "arc_easy/acc": 0.48737373737373735,
+    "arc_easy/acc_stderr": 0.010256511718330587,
+    "arc_easy/acc_norm": 0.4372895622895623,
+    "arc_easy/acc_norm_stderr": 0.010178768429321602,
+    "piqa/acc": 0.5919477693144722,
+    "piqa/acc_stderr": 0.011466872778651256,
+    "piqa/acc_norm": 0.5750816104461371,
+    "piqa/acc_norm_stderr": 0.01153354794665477,
+    "winogrande/acc": 0.5090765588003157,
+    "winogrande/acc_stderr": 0.0140501700944977
+  },
+  "wikitext103_stride512": {
+    "total_nats": 965770.1741495132,
+    "n_tokens": 286994,
+    "n_words": 241335,
+    "n_bytes": 1290526,
+    "n_docs": 62,
+    "ctx": 1024,
+    "stride": 512,
+    "token_ppl": 28.9370627797509,
+    "word_ppl": 54.69555678087597,
+    "bits_per_byte": 1.0796464704190178
+  },
+  "wikitext103_lmeval_style": {
+    "total_nats": 992517.0199127197,
+    "n_tokens": 286994,
+    "n_words": 241335,
+    "n_bytes": 1290526,
+    "n_docs": 62,
+    "ctx": 1024,
+    "stride": 1023,
+    "token_ppl": 31.763561103219825,
+    "word_ppl": 61.10606857525834,
+    "bits_per_byte": 1.1095471014345881
+  },
+  "eval_s": 185.2
+}
