@@ -1,0 +1,15 @@
+# tok32k shards after WikiText-103 val+test 13-gram filtering (2026-09-26). From `modal run modal_data.py::check --tok tok32k`.
+source    split shards        tokens  docs       bytes/token  dropped_title  dropped_ngram
+fwedu     train    99  9,000,016,745  8,754,965  4.614        0              2,762
+fwedu     val       6      5,356,713      4,950  4.667        0              0
+fwedu_hq  train    61  5,000,000,065  4,633,730  4.656        0              420
+fwedu_hq  val       6      5,327,076      4,684  4.693        0              0
+dclm      train    68  4,600,374,094  3,657,618  4.374        0              388
+dclm      val       6      5,605,250      4,606  4.460        0              0
+finemath  train    36  2,400,216,860  1,634,205  3.458        0              6
+finemath  val       8      7,246,138      5,082  3.451        0              0
+finepdfs  train     7    700,075,603    120,806  4.157        0              8
+finepdfs  val       7      6,446,200      1,490  3.881        0              0
+wiki      train     9    600,000,319    645,144  4.065        16             1,107
+wiki      val       7      6,040,105      5,426  4.139        0              18
+# total train tokens 22,300,683,686; total docs dropped by 13-gram overlap 4,709 (+16 by title)
