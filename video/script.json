@@ -1,0 +1,442 @@
+{
+  "_comment": "Edit 'values' when the 20B results land; {{KEY}} is substituted everywhere (narration and slides). Anything still containing [FINAL is reported as a leftover placeholder at the end of the render.",
+  "voice": "Samantha",
+  "rate": 178,
+  "values": {
+    "RUN": "[FINAL NUMBERS: run]",
+    "WEIGHTS": "[FINAL NUMBERS: final/avg]",
+    "HS": "[FINAL NUMBERS]",
+    "ARCE": "[FINAL NUMBERS]",
+    "PIQA": "[FINAL NUMBERS]",
+    "WINO": "[FINAL NUMBERS]",
+    "WT_LMEVAL": "[FINAL NUMBERS]",
+    "VAL_BPB": "[FINAL NUMBERS]",
+    "GPU_HOURS": "[FINAL NUMBERS]",
+    "FINAL_REMARK": "[FINAL NUMBERS: one sentence on how this compares with the 1B run.]",
+    "DEMO_MODEL": "Checkpoint: sweep_A_vres, 1B-token sweep run. [FINAL NUMBERS: swap for the submitted model]"
+  },
+  "pronounce": {
+    "PIQA": "pie-kah",
+    "AdamW": "Adam W",
+    "H100": "H 100",
+    "QK-norm": "Q K norm",
+    "ReLU": "rel-you",
+    "WikiText-103": "WikiText 103",
+    "13-gram": "13 gram",
+    "13-grams": "13 grams",
+    "DCLM": "D C L M",
+    "FineWeb-Edu": "FineWeb Edu",
+    "FinePDFs": "Fine PDFs",
+    "modded-nanogpt": "modded nano G P T",
+    "uv": "U V",
+    "32k": "32 K",
+    "count_params.py": "count params",
+    "GPU-hours": "GPU hours"
+  },
+  "demo": {
+    "prompts": [
+      "The capital of France is",
+      "Photosynthesis is the process by which",
+      "To boil an egg, you"
+    ],
+    "max_new": 40,
+    "temperature": 0.8,
+    "top_k": 50,
+    "seed": 0
+  },
+  "scenes": [
+    {
+      "id": "intro",
+      "narration": "We trained a small language model from scratch for Track 01 of the Global Innovation Build Challenge. The rules cap it at fifty million trainable parameters, and ours has 49,822,228. It learned from random weights on 20 billion tokens of openly licensed English text, with our own tokenizer, on one H100 in about eight hours.",
+      "slide": {
+        "kicker": "GIBC V2 · Track 01 · Foundational LLM",
+        "title": "A 49.8M-parameter language model, trained from scratch",
+        "blocks": [
+          {
+            "bullets": [
+              "49,822,228 trainable parameters, under the 50M cap",
+              "20B tokens of openly licensed English text",
+              "Our own 32,768-entry byte-level BPE tokenizer",
+              "One H100, about 8 hours per main run",
+              "No pretrained weights, no synthetic data"
+            ],
+            "size": 46
+          }
+        ]
+      }
+    },
+    {
+      "id": "architecture",
+      "narration": "The model is a 14-layer transformer, 512 wide, with grouped-query attention, rotary position embeddings and QK-norm, and a squared ReLU in the MLP. U-net style skips connect early layers to late ones, and a value residual lets every layer reuse the first layer's values. The 32k embedding is tied to the output head and takes a third of the budget. Counted once, as the one tensor the optimizer updates, the total is 49,822,228. Counted twice, it is 66.6 million. We report both.",
+      "slide": {
+        "kicker": "Architecture",
+        "title": "14 layers, width 512, tied 32k embedding",
+        "columns": [
+          [
+            {
+              "bullets": [
+                "Pre-norm decoder, RMSNorm, no biases",
+                "GQA: 8 query heads, 4 KV heads, dim 64",
+                "RoPE + QK-norm",
+                "MLP 512 to 1536 to 512, ReLU²",
+                "U-net skips: layer i feeds layer 13 − i",
+                "Value residual (ResFormer), 13 learned λ",
+                "Logit softcap 15, context 1,024"
+              ],
+              "size": 34
+            }
+          ],
+          [
+            {
+              "table": {
+                "header": [
+                  "Component",
+                  "Parameters"
+                ],
+                "rows": [
+                  [
+                    "Embedding = output head (tied)",
+                    "16,777,216"
+                  ],
+                  [
+                    "One layer",
+                    "2,360,320"
+                  ],
+                  [
+                    "14 layers",
+                    "33,044,480"
+                  ],
+                  [
+                    "Skips, final norm, λ",
+                    "532"
+                  ],
+                  [
+                    "Total, tied counted once",
+                    "49,822,228"
+                  ],
+                  [
+                    "Tied matrix counted twice",
+                    "66,599,444"
+                  ]
+                ],
+                "align": "lr",
+                "highlight": [
+                  4
+                ],
+                "size": 32
+              }
+            },
+            {
+              "note": "177,772 under the cap on the counted-once convention. Both conventions are reported in the README."
+            }
+          ]
+        ],
+        "widths": [
+          0.48,
+          0.52
+        ]
+      }
+    },
+    {
+      "id": "recipe",
+      "narration": "Training follows the modded-nanogpt speedrun recipe. Muon updates the matrices inside the blocks, and AdamW updates the embedding and the scalars. The learning rate warms up, holds, then decays to zero over the last 35 percent of training, and at that point the data switches to higher quality sources. We also average the last few snapshots, and report whichever weights score better.",
+      "slide": {
+        "kicker": "Training recipe",
+        "title": "Muon + AdamW, warmup-stable-decay, quality anneal",
+        "blocks": [
+          {
+            "bullets": [
+              "Muon (lr 0.02, Nesterov 0.95) on the 84 block matrices; AdamW (lr 3e-3) on embedding and scalars",
+              "Warmup 1%, constant, then linear decay to 0 over the last 35%",
+              "524,288 tokens per step: 38,146 steps for 20B tokens",
+              "Quality anneal: at decay start, switch to FineWeb-Edu int_score ≥ 4, FineMath, Wikipedia",
+              "Checkpoint averaging: mean of the last 4 decay snapshots, 250 steps apart",
+              "bf16 autocast, torch.compile, single GPU, exact resume"
+            ],
+            "size": 38
+          }
+        ]
+      }
+    },
+    {
+      "id": "data",
+      "narration": "The data is FineWeb-Edu, DCLM, FineMath, FinePDFs and Wikipedia, all public and openly licensed. WikiText-103 is built from Wikipedia, which is copied all over the web. Before filtering, about five percent of its test 13-grams appeared in a sample of our training data. So we drop every document sharing any 13-gram with WikiText validation or test, 4,969 documents in all, plus 16 Wikipedia articles by title. The multiple-choice benchmarks are not filtered, but their measured overlap is a handful of items.",
+      "slide": {
+        "kicker": "Data and decontamination",
+        "title": "Open data, filtered against WikiText-103",
+        "columns": [
+          [
+            {
+              "table": {
+                "header": [
+                  "Source",
+                  "Licence"
+                ],
+                "rows": [
+                  [
+                    "FineWeb-Edu",
+                    "ODC-By 1.0"
+                  ],
+                  [
+                    "DCLM-baseline",
+                    "CC-BY-4.0"
+                  ],
+                  [
+                    "FineMath",
+                    "ODC-By 1.0"
+                  ],
+                  [
+                    "FinePDFs",
+                    "ODC-By 1.0"
+                  ],
+                  [
+                    "Wikipedia (anneal only)",
+                    "CC-BY-SA 3.0"
+                  ]
+                ],
+                "align": "ll",
+                "size": 30
+              }
+            },
+            {
+              "note": "4,969 documents dropped for sharing a 13-gram with WikiText-103 validation or test, plus 16 Wikipedia articles by title."
+            }
+          ],
+          [
+            {
+              "table": {
+                "header": [
+                  "Benchmark",
+                  "Items with overlap"
+                ],
+                "rows": [
+                  [
+                    "HellaSwag",
+                    "3 / 10,042"
+                  ],
+                  [
+                    "ARC-Easy",
+                    "1 / 2,376"
+                  ],
+                  [
+                    "PIQA",
+                    "2 / 1,838"
+                  ],
+                  [
+                    "WinoGrande",
+                    "0 / 1,267"
+                  ]
+                ],
+                "align": "lr",
+                "size": 30
+              }
+            },
+            {
+              "note": "Benchmark 13-gram overlap, measured against a 300M-token sample of the filtered training shards. Benchmarks are measured, not filtered."
+            }
+          ]
+        ],
+        "widths": [
+          0.5,
+          0.5
+        ]
+      }
+    },
+    {
+      "id": "sweep",
+      "narration": "Before spending eight GPU-hours on a main run, we ran eleven one-billion-token experiments, each changing one thing. Muon beat AdamW by a wide margin. The value residual gave the biggest perplexity gain, 57.2 down to 54.0, for 13 extra parameters, so we kept it. The quality anneal raised ARC-Easy but lowered PIQA, so our two main runs try two strengths. Each arm is one seed, so benchmark gaps under about two points are noise, and we leaned on perplexity to decide.",
+      "slide": {
+        "kicker": "1B-token ablation sweep",
+        "title": "11 arms, one change each, one seed",
+        "columns": [
+          [
+            {
+              "image": "results/sweep_1B/val_bpb.png"
+            }
+          ],
+          [
+            {
+              "table": {
+                "header": [
+                  "Arm",
+                  "WT ppl",
+                  "val bpb",
+                  "ARC-E"
+                ],
+                "rows": [
+                  [
+                    "baseline",
+                    "57.17",
+                    "1.1020",
+                    "46.46"
+                  ],
+                  [
+                    "+ value residual",
+                    "53.95",
+                    "1.0931",
+                    "47.18"
+                  ],
+                  [
+                    "+ XSA",
+                    "55.93",
+                    "1.1010",
+                    "46.51"
+                  ],
+                  [
+                    "NorMuon",
+                    "55.93",
+                    "1.1019",
+                    "47.60"
+                  ],
+                  [
+                    "quality anneal",
+                    "58.51",
+                    "1.0965",
+                    "47.98"
+                  ],
+                  [
+                    "16k vocab",
+                    "58.35",
+                    "1.1296",
+                    "44.15"
+                  ],
+                  [
+                    "AdamW only",
+                    "88.98",
+                    "1.2215",
+                    "42.55"
+                  ]
+                ],
+                "align": "lrrr",
+                "highlight": [
+                  1
+                ],
+                "size": 28
+              }
+            },
+            {
+              "note": "WikiText-103 test word perplexity, stride 512. One seed per arm: benchmark gaps under ~2 points are noise."
+            }
+          ]
+        ],
+        "widths": [
+          0.54,
+          0.46
+        ]
+      }
+    },
+    {
+      "id": "results",
+      "narration": "Here are the final numbers for the submitted model, {{RUN}}, trained on the full 20 billion tokens. HellaSwag, {{HS}} percent. ARC-Easy, {{ARCE}} percent. PIQA, {{PIQA}} percent. WinoGrande, {{WINO}} percent. WikiText-103 perplexity, {{WT_LMEVAL}}. {{FINAL_REMARK}} All benchmarks are zero-shot, on the full evaluation sets, with lm-evaluation-harness.",
+      "slide": {
+        "kicker": "Final results",
+        "title": "Submitted model: {{RUN}}",
+        "blocks": [
+          {
+            "table": {
+              "header": [
+                "Metric",
+                "1B sweep (sweep_A_vres)",
+                "20B main run"
+              ],
+              "rows": [
+                [
+                  "HellaSwag acc_norm (%)",
+                  "28.71",
+                  "{{HS}}"
+                ],
+                [
+                  "ARC-Easy acc (%)",
+                  "47.18",
+                  "{{ARCE}}"
+                ],
+                [
+                  "PIQA acc (%)",
+                  "60.83",
+                  "{{PIQA}}"
+                ],
+                [
+                  "WinoGrande acc (%)",
+                  "50.04",
+                  "{{WINO}}"
+                ],
+                [
+                  "WikiText-103 word ppl (lm-eval windows)",
+                  "60.57",
+                  "{{WT_LMEVAL}}"
+                ],
+                [
+                  "Held-out val bits/byte",
+                  "1.0931",
+                  "{{VAL_BPB}}"
+                ],
+                [
+                  "H100 hours",
+                  "0.4",
+                  "{{GPU_HOURS}}"
+                ]
+              ],
+              "align": "lrr",
+              "size": 34
+            }
+          },
+          {
+            "note": "Zero-shot, full evaluation sets, lm-evaluation-harness 0.4.13. Weights: {{WEIGHTS}}. Chance is 25% on HellaSwag and 50% on WinoGrande."
+          }
+        ]
+      }
+    },
+    {
+      "id": "demo",
+      "type": "demo",
+      "narration": "Now the model itself, running locally on a laptop. We give it three prompts and let it continue. The text is grammatical and keeps the register of the prompt. It also gets facts wrong and repeats itself, which is what we expect at fifty million parameters.",
+      "slide": {
+        "kicker": "Live generation",
+        "title": "Sampling on a laptop (temperature 0.8, top-k 50)",
+        "subtitle": "{{DEMO_MODEL}}"
+      }
+    },
+    {
+      "id": "close",
+      "narration": "Everything needed to reproduce this is in the repository. uv installs the pinned environment, and the Modal scripts build the data, train and evaluate. On AI use: this project was built with Claude Code agents under human direction. The agents wrote the code, ran the experiments and drafted the docs. Mohammed Alibhai set the goals, made the decisions, reviewed the work and paid for the compute. Thanks for watching.",
+      "slide": {
+        "kicker": "Reproduce · AI use",
+        "title": "How to reproduce, and who did what",
+        "columns": [
+          [
+            {
+              "code": [
+                "uv sync && uv run pytest -q",
+                "uv run python scripts/count_params.py",
+                "modal run modal_data.py::train_tokenizers",
+                "modal run modal_data.py::tokenize_all --tok tok32k",
+                "modal run modal_train.py::launch --group main",
+                "modal run modal_eval.py::main --run <run>",
+                "python scripts/demo.py --ckpt final.pt -i"
+              ],
+              "size": 24
+            },
+            {
+              "note": "Full commands, data manifest and raw eval JSON: README.md"
+            }
+          ],
+          [
+            {
+              "bullets": [
+                "Built with Claude Code (Claude Opus and Fable agents) under human direction",
+                "Agents wrote the code, ran the experiments, drafted the docs",
+                "Mohammed Alibhai set goals, made the calls, reviewed the work, paid for compute",
+                "The model's training data contains no AI-generated text"
+              ],
+              "size": 32
+            }
+          ]
+        ],
+        "widths": [
+          0.5,
+          0.5
+        ]
+      }
+    }
+  ]
+}

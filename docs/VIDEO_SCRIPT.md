@@ -1,5 +1,21 @@
 # Demo video outline (target 3-4 minutes, hard limits 2-5)
 
+## Rendering the video
+
+The video is rendered automatically; the narration and slides live in [`video/script.json`](../video/script.json), which is the source of truth (the outline below is the original plan it was written from).
+
+```bash
+uv run modal volume get gibc-runs <submitted_run>/final.pt runs/final.pt
+uv run modal volume get gibc-data tok/tok32k/tokenizer.json runs/tokenizer.json
+uv run python scripts/make_video.py --ckpt runs/final.pt --tok runs/tokenizer.json
+```
+
+This samples the demo prompts from the checkpoint, synthesises the narration with macOS `say` (voice and rate set in `script.json`, override with `--voice`), renders one 1920x1080 slide per scene plus a typewriter animation of the demo output, and writes `video/gibc_demo.mp4` (H.264 + AAC 48 kHz), `video/captions.srt`, `video/slides/*.png` and `video/demo_output.json` (raw samples). It takes about 30 seconds on an Apple laptop and needs `ffmpeg` on the PATH.
+
+To finish the video once the main runs are evaluated, edit only the `values` block at the top of `video/script.json` (every `[FINAL NUMBERS]` entry: run name, benchmark scores, WikiText perplexity, val bits/byte, GPU hours, weights variant, a one-sentence remark and the demo checkpoint label) and rerun the command with the final checkpoint. The script lists any placeholder still left when it finishes. `pronounce` maps written terms to how the voice should say them; captions keep the written form.
+
+## Original outline
+
 Screen recording with voice-over. Times are cumulative targets. Anything in `{{...}}` is filled in once the main runs finish.
 
 ## 0:00-0:20 What this is

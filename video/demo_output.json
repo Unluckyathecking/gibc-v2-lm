@@ -1,0 +1,28 @@
+{
+  "ckpt": "/private/tmp/claude-501/-Users-mohammedalibhai-Documents/abf4f0cf-0b7e-406a-b8f4-8de87f1ea365/scratchpad/ckpt/final.pt",
+  "demo": {
+    "prompts": [
+      "The capital of France is",
+      "Photosynthesis is the process by which",
+      "To boil an egg, you"
+    ],
+    "max_new": 40,
+    "temperature": 0.8,
+    "top_k": 50,
+    "seed": 0
+  },
+  "samples": [
+    {
+      "prompt": "The capital of France is",
+      "completion": " Saint-Domingo, which is said to have been the last of the Seven Months of the 10th century. It is the oldest known capital city in the United Kingdom, and it is"
+    },
+    {
+      "prompt": "Photosynthesis is the process by which",
+      "completion": " the DNA strands of cells break down proteins in the order that they form. It is believed that proteins are the basis for the structure of the cells. The following diagram shows a typical cell.\nIn animal"
+    },
+    {
+      "prompt": "To boil an egg, you",
+      "completion": " must first boil it. But when you boil your egg, you also have to boil it. If you can boil it right, it\u2019s much more difficult to boil the egg in the first place,"
+    }
+  ]
+}

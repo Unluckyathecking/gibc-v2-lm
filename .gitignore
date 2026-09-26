@@ -3,3 +3,7 @@ __pycache__/
 *.pt
 *.bin
 .pytest_cache/
+video/*.mp4
+video/*.m4a
+video/*.aiff
+video/frames/
