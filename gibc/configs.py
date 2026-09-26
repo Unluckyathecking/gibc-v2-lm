@@ -85,8 +85,8 @@ class ModelConfig:
     softcap: float = 15.0
     rope_base: float = 10_000.0
     tokenizer: str = "tok32k"
-    xsa: bool = False             # Exclusive Self Attention: remove each token's own value from its output
-    value_residual: bool = False  # blend each layer's V with layer 1's V via a learned scalar per layer
+    xsa: bool = False             # Exclusive Self Attention with a learned gate per layer and head (+n_eff*n_head)
+    value_residual: bool = False  # blend each layer's V with layer 1's V via a learned scalar per layer (+n_eff-1)
 
     @property
     def n_eff(self) -> int:
@@ -108,7 +108,7 @@ MODEL_CONFIGS = {
                         n_head=8, n_kv_head=4, mlp_hidden=1536,
                         tokenizer="tok16k"),                             # 41,433,607 once / 49,822,215 twice
 }
-# Variants of A used by sweep arms; identical param count except +n_eff scalars for value_residual.
+# Variants of A used by sweep arms: A_xsa = 49,822,327 (+112 gates), A_vres = 49,822,228 (+13 scalars).
 MODEL_CONFIGS["A_xsa"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "xsa": True})
 MODEL_CONFIGS["A_vres"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "value_residual": True})
 PARAM_CAP = 50_000_000
