@@ -117,7 +117,7 @@ class GPT(nn.Module):
         logits = self.cfg.softcap * torch.tanh(logits.float() / self.cfg.softcap)
         if targets is None:
             return logits
-        return F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+        return F.cross_entropy(logits.view(-1, logits.size(-1)), targets.reshape(-1))
 
 
 def count_params(cfg: ModelConfig) -> dict[str, int]:
