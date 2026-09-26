@@ -18,6 +18,42 @@ The voice is `voice` in `script.json` (default `bf_emma`, British female; `speed
 
 The `values` block at the top of `video/script.json` holds the final numbers for the submitted model, `main_vres_anneal` (final weights): run name, benchmark scores, WikiText perplexity, val bits/byte, GPU hours, weights variant, a one-sentence remark and the demo checkpoint label. To change them, edit that block and rerun the command. The script lists any `[FINAL` placeholder still left when it finishes. `pronounce` maps written terms to how the voice should say them; captions keep the written form.
 
+## Recording your own voiceover
+
+To narrate the video yourself instead of using a synthetic voice, record one take per scene with the teleprompter, then render with `--tts voiceover`. Budget about 30 minutes for the eight scenes.
+
+```bash
+uv run python scripts/teleprompter.py        # opens http://127.0.0.1:8741/ in Chrome; Ctrl+C when done
+uv run python scripts/make_video.py --voiceover-check
+uv run python scripts/make_video.py --tts voiceover --reuse-demo --ckpt runs/final.pt --tok runs/tokenizer.json
+```
+
+The teleprompter shows each scene's slide with its narration underneath and highlights the words at a target pace (150 words per minute by default), so you can see how fast to speak. Each take starts after a 3-2-1 countdown. The footer shows the scene's target length and your length; the side panel lists which scenes are recorded. When you allow the microphone, the level meter in the top bar should reach about -20 to -10 dB while you speak and never show CLIPPING.
+
+| Key | Action |
+|---|---|
+| Space | start a take (after the countdown) / stop it and save |
+| R | retake: discard what is running and start again |
+| P | play back this scene's saved take |
+| Enter or → | next scene (while recording: stop, save, then move on) |
+| ← | previous scene |
+| - / + | slower / faster pace (or use the slider) |
+| M | switch between record mode and rehearse mode (a run-through with nothing recorded) |
+| D | summary: every scene's length against its target and the estimated video length |
+
+Each take is saved as `video/voiceover/scene_NN.webm` (or `.m4a`/`.ogg`, depending on the browser) with a `scene_NN.json` holding its length; a retake overwrites it. `--voiceover-check` prints every take's length against its target and the resulting video length, which must be 150-300 s, and lists any missing scene. `--tts voiceover` converts each take with ffmpeg, trims the silence at both ends (gently: it keeps 0.2 s before and 0.3 s after your speech), loudness-normalises it to -16 LUFS like the other voices, and builds the video exactly as the other backends do, each slide lasting as long as its take plus the usual padding. It stops with a list of missing scenes if any take is absent. Captions stay one cue per sentence, spread across each take in proportion to sentence length; there is no forced alignment, so a cue can run slightly ahead of or behind your voice if you pause unevenly.
+
+Use Chrome. Its MediaRecorder is the most reliable here; Safari and Firefox should work too, but are less tested. Chrome asks for microphone permission the first time; if you blocked it, click the icon at the right of the address bar, allow the microphone, and reload. The page must come from the teleprompter's own address (`http://127.0.0.1:...`), not from opening the HTML file directly, because browsers only allow the microphone on localhost or https. To use a USB microphone, plug it in before starting and pick it in Chrome's site settings or in System Settings > Sound > Input.
+
+Tips for a clean recording:
+
+- Record in a quiet room with soft furnishings (a bedroom beats a kitchen), with fans, notifications and the laptop's own fan noise kept as low as you can.
+- Sit about 20 cm from the mic and keep the same position and distance for every scene, so the scenes sound alike when cut together. With the built-in mic, that means the same seat and the same laptop position throughout.
+- Record scene 1 twice: treat the first take as a warm-up, then press R and do it properly.
+- Rehearse a scene once in rehearse mode (M) if it has numbers or names you might trip over.
+- Leave a breath of silence after the countdown and at the end before pressing Space; the trim removes it, along with the click of the Space key.
+- Play each take back with P before moving on; retakes are cheap.
+
 ## Original outline
 
 Screen recording with voice-over. Times are cumulative targets. The final numbers are filled in below.

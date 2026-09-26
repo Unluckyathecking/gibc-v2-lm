@@ -7,3 +7,6 @@ video/*.mp4
 video/*.m4a
 video/*.aiff
 video/frames/
+video/voiceover/scene_*
+video/voice_samples/*.mp3
+video/voice_samples/*.mp4

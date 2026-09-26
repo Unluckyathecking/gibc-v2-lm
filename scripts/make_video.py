@@ -16,6 +16,8 @@ and animate the output as a typewriter; stream every frame into one ffmpeg proce
 the concatenated narration, loudness-normalised to -16 LUFS.
 Writes the mp4, video/captions.srt, video/slides/*.png and video/demo_output.json.
 --sample renders only the first scene to video/voice_sample.mp4, for judging a voice.
+--tts voiceover narrates with your own takes, video/voiceover/scene_NN.(webm|wav|m4a|mp3|ogg),
+recorded with scripts/teleprompter.py; --voiceover-check reports their lengths without rendering.
 Needs ffmpeg/ffprobe on PATH; Kokoro needs espeak-ng (brew install espeak-ng) and
 downloads its weights (~330 MB) from Hugging Face on first use.
 """
@@ -48,6 +50,12 @@ TYPE_CPS = 40               # typewriter speed, characters per second
 CAPTION_CHARS = 84          # max characters per subtitle cue
 MARGIN = 110
 OPENROUTER_URL = "https://openrouter.ai/api/v1"
+VO_EXTS = ("webm", "wav", "m4a", "mp3", "ogg")   # recorded takes, video/voiceover/scene_NN.<ext>
+TARGET_WPM = 150            # speaking rate the teleprompter paces at; per-scene target = words / wpm
+# gentle trim: drop silence below -45 dB at both ends (ignoring blips under 0.1 s, e.g. the
+# stop-key click), keeping 0.2 s before and 0.3 s after the speech
+TRIM = ("silenceremove=start_periods=1:start_threshold=-45dB:start_duration=0.1:start_silence=0.2,areverse,"
+        "silenceremove=start_periods=1:start_threshold=-45dB:start_duration=0.1:start_silence=0.3,areverse")
 
 THEME = {
     "bg": (247, 246, 242), "fg": (28, 30, 34), "muted": (104, 108, 116),
@@ -188,6 +196,82 @@ def openrouter_to_pcm(texts: list[str], model: str, voice: str | None, style: st
     return out
 
 
+def find_takes(vo_dir: str, n_scenes: int) -> list[str | None]:
+    """Per scene, the newest vo_dir/scene_NN.<ext> (NN from 01), or None if there is none."""
+    out = []
+    for i in range(1, n_scenes + 1):
+        found = [p for e in VO_EXTS if os.path.exists(p := os.path.join(vo_dir, f"scene_{i:02d}.{e}"))]
+        out.append(max(found, key=os.path.getmtime) if found else None)
+    return out
+
+
+def take_to_pcm(path: str) -> bytes:
+    """Decode a recorded take to mono 16-bit PCM at SR, silence-trimmed and loudness-normalised."""
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-af", f"{TRIM},{LOUDNORM}",
+                        "-f", "s16le", "-ac", "1", "-ar", str(SR), "pipe:1"], capture_output=True)
+    if r.returncode != 0 or not r.stdout:
+        raise ValueError(f"could not decode {path}: {r.stderr.decode(errors='replace').strip() or 'no audio'}")
+    return r.stdout
+
+
+def voiceover_takes(scenes: list[dict], vo_dir: str) -> list[str]:
+    """Paths of every scene's take; exits with the list of missing ones if any are absent."""
+    takes = find_takes(vo_dir, len(scenes))
+    missing = [f"scene_{i:02d} ({sc['id']})" for i, (sc, p) in enumerate(zip(scenes, takes), 1) if p is None]
+    if missing:
+        sys.exit(f"missing voiceover takes in {vo_dir} (record them with scripts/teleprompter.py):\n  "
+                 + "\n  ".join(missing))
+    return takes
+
+
+def voiceover_to_pcm(scenes: list[dict], vo_dir: str) -> list[bytes]:
+    out = []
+    for path in voiceover_takes(scenes, vo_dir):
+        try:
+            out.append(take_to_pcm(path))
+        except ValueError as e:
+            sys.exit(str(e))
+    return out
+
+
+def voiceover_check(script: dict, vo_dir: str, demo_json: str) -> None:
+    """Print each take's length (after trimming) against its target and the resulting video length."""
+    scenes = script["scenes"]
+    takes = find_takes(vo_dir, len(scenes))
+    samples = None
+    if os.path.exists(demo_json):
+        with open(demo_json) as f:
+            samples = json.load(f)["samples"]
+    print(f"{'scene':<22}{'take':>8}{'target':>9}{'diff':>8}   ({TARGET_WPM} wpm)")
+    total, missing = 0.0, []
+    for i, (sc, path) in enumerate(zip(scenes, takes)):
+        name, target = f"{i + 1:02d} {sc['id']}", len(sc["narration"].split()) / TARGET_WPM * 60
+        if path is None:
+            missing.append(f"scene_{i + 1:02d}")
+            print(f"{name:<22}{'MISSING':>8}{target:>8.1f}s")
+            continue
+        try:
+            d = len(take_to_pcm(path)) / 2 / SR
+        except ValueError as e:
+            sys.exit(str(e))
+        scene_s = LEAD + d + TAIL
+        if sc.get("type") == "demo" and samples is not None:
+            _, _, top = draw_frame_chrome(sc["slide"], i, len(scenes))
+            scene_s = max(scene_s, Typewriter(Image.new("RGB", (W, H)), top, "runs/final.pt",
+                                              "tokenizer.json", samples).duration)
+        total += math.ceil(scene_s * FPS) / FPS
+        print(f"{name:<22}{d:>7.1f}s{target:>8.1f}s{d - target:>+7.1f}s   {os.path.basename(path)}")
+    if missing:
+        sys.exit(f"missing: {', '.join(missing)} (record them with scripts/teleprompter.py)")
+    if samples is None and any(sc.get("type") == "demo" for sc in scenes):
+        print(f"note: no {demo_json}; the demo scene's typewriter may make it longer than its take")
+    ok = 150 <= total <= 300
+    print(f"video length ~{total:.1f} s (takes plus {LEAD + TAIL:.1f} s padding per scene): "
+          f"{'OK' if ok else 'OUTSIDE'} the 150-300 s limit")
+    if not ok:
+        sys.exit(1)
+
+
 def split_pcm(pcm: bytes, parts: list[str]) -> list[bytes]:
     """Cut one scene's PCM into per-sentence pieces in proportion to their length (for captions)."""
     n, total, cuts, acc = len(pcm) // 2, sum(len(p) for p in parts), [0], 0
@@ -198,14 +282,16 @@ def split_pcm(pcm: bytes, parts: list[str]) -> list[bytes]:
 
 
 def synthesise(script: dict, workdir: str, tts: str, model: str | None = None,
-               style: str | None = None) -> list[list[tuple[str, bytes]]]:
-    """Per scene, a list of (caption text, pcm) per sentence."""
+               style: str | None = None, vo_dir: str | None = None) -> list[list[tuple[str, bytes]]]:
+    """Per scene, a list of (caption text, pcm) per sentence. For whole-scene audio (openrouter,
+    voiceover) the sentences' caption times are proportional to their length, not aligned."""
     voice, pron = script["voice"], script.get("pronounce", {})
     jobs = [(si, ti, s) for si, sc in enumerate(script["scenes"])
             for ti, s in enumerate(sentences(sc["narration"]))]
-    if tts == "openrouter":  # one request per scene keeps the prosody continuous
-        scene_pcm = openrouter_to_pcm([spoken(sc["narration"], pron) for sc in script["scenes"]],
-                                      model, voice, style, workdir)
+    if tts in ("openrouter", "voiceover"):  # one clip per scene keeps the prosody continuous
+        scene_pcm = (voiceover_to_pcm(script["scenes"], vo_dir) if tts == "voiceover" else
+                     openrouter_to_pcm([spoken(sc["narration"], pron) for sc in script["scenes"]],
+                                       model, voice, style, workdir))
         return [list(zip(ss, split_pcm(pcm, ss))) for pcm, ss in
                 zip(scene_pcm, (sentences(sc["narration"]) for sc in script["scenes"]))]
     if tts == "kokoro":
@@ -546,11 +632,16 @@ def probe(path: str) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("--ckpt", required=True, help="checkpoint for the live demo (final.pt)")
-    ap.add_argument("--tok", required=True, help="tokenizer.json")
+    ap.add_argument("--ckpt", help="checkpoint for the live demo (final.pt); required unless --voiceover-check")
+    ap.add_argument("--tok", help="tokenizer.json; required unless --voiceover-check")
     ap.add_argument("--script", default=os.path.join(ROOT, "video", "script.json"))
     ap.add_argument("--out", help="default video/gibc_demo.mp4, or video/voice_sample.mp4 with --sample")
-    ap.add_argument("--tts", choices=["kokoro", "say", "openrouter"], default="kokoro", help="narration backend")
+    ap.add_argument("--tts", choices=["kokoro", "say", "openrouter", "voiceover"], default="kokoro",
+                    help="narration backend; voiceover uses your own takes (scripts/teleprompter.py)")
+    ap.add_argument("--voiceover-dir", default=os.path.join(ROOT, "video", "voiceover"),
+                    help="where --tts voiceover finds scene_NN.(webm|wav|m4a|mp3|ogg)")
+    ap.add_argument("--voiceover-check", action="store_true",
+                    help="print each take's length vs its target and the video length, then exit")
     ap.add_argument("--voice", help="override script.json's voice (kokoro, e.g. bf_emma, bm_george, af_heart) "
                                     "or say_voice (say, see `say -v '?'`); openrouter: the model's voice id")
     ap.add_argument("--model", help="openrouter TTS model id, e.g. google/gemini-3.8-flash-tts")
@@ -560,6 +651,12 @@ def main() -> None:
                     help="render only the first scene, to judge a voice (slides and captions.srt untouched)")
     args = ap.parse_args()
     args.out = args.out or os.path.join(ROOT, "video", "voice_sample.mp4" if args.sample else "gibc_demo.mp4")
+    if args.voiceover_check:
+        voiceover_check(load_script(args.script), args.voiceover_dir,
+                        os.path.join(os.path.dirname(os.path.abspath(args.out)), "demo_output.json"))
+        return
+    if not (args.ckpt and args.tok):
+        ap.error("--ckpt and --tok are required")
     if args.tts == "openrouter" and not args.model:
         sys.exit("--tts openrouter needs --model")
     needed = ("ffmpeg", "ffprobe") + {"say": ("say",), "kokoro": ("espeak-ng",)}.get(args.tts, ())
@@ -570,6 +667,8 @@ def main() -> None:
     script = load_script(args.script)
     if args.sample:
         script["scenes"] = script["scenes"][:1]
+    if args.tts == "voiceover":  # fail before sampling the demo if a take is missing
+        voiceover_takes(script["scenes"], args.voiceover_dir)
     default_voice = {"kokoro": script.get("voice", "bf_emma"), "say": script.get("say_voice", "Samantha")}.get(args.tts)
     script["voice"] = args.voice or default_voice
     vdir = os.path.dirname(os.path.abspath(args.out))
@@ -589,9 +688,12 @@ def main() -> None:
         with open(demo_json, "w") as f:
             json.dump({"ckpt": args.ckpt, "demo": script["demo"], "samples": samples}, f, indent=2)
 
-    print(f"synthesising narration with {args.tts}{f' {args.model}' if args.model else ''}, "
-          f"voice {script['voice'] or 'default'} ...", flush=True)
-    speech = synthesise(script, work, args.tts, args.model, args.style)
+    if args.tts == "voiceover":
+        print(f"preparing voiceover takes from {args.voiceover_dir} (trim, loudness-normalise) ...", flush=True)
+    else:
+        print(f"synthesising narration with {args.tts}{f' {args.model}' if args.model else ''}, "
+              f"voice {script['voice'] or 'default'} ...", flush=True)
+    speech = synthesise(script, work, args.tts, args.model, args.style, args.voiceover_dir)
     if args.sample and args.tts == "openrouter":  # keep the untouched MP3 next to the clip
         shutil.copy(os.path.join(work, "scene_00.mp3"), os.path.splitext(args.out)[0] + ".mp3")
 

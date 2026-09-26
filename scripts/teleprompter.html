@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voiceover Teleprompter</title>
+<style>
+  :root {
+    --bg: #111317; --panel: #1b1e24; --line: #2c3038; --fg: #eceef1; --muted: #8b919b;
+    --read: #5d636d; --cur: #fde047; --accent: #60a5fa; --rec: #ef4444; --ok: #22c55e; --warn: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.4 -apple-system, "Helvetica Neue", Arial, sans-serif;
+    display: grid; grid-template-columns: 1fr 290px; grid-template-rows: auto 1fr auto;
+  }
+  header {
+    grid-column: 1 / 3; display: flex; flex-wrap: wrap; align-items: center; gap: 22px;
+    padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  #scene-name { font-weight: 700; font-size: 20px; min-width: 260px; }
+  #mode {
+    border: 0; border-radius: 6px; padding: 6px 12px; font: inherit; font-weight: 700; cursor: pointer;
+    color: #fff; background: var(--rec);
+  }
+  #mode.rehearse { background: #4b5563; }
+  #state { font-weight: 700; min-width: 120px; }
+  #state.recording { color: var(--rec); }
+  #state.rehearsing { color: var(--accent); }
+  label { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  #wpm-val { color: var(--fg); font-weight: 700; min-width: 34px; }
+  .meter { display: inline-block; width: 180px; height: 12px; background: #000; border-radius: 6px; overflow: hidden; }
+  #meter-bar { height: 100%; width: 0; background: var(--ok); transition: width 60ms linear; }
+  #meter-db { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 64px; }
+  #mic-name { color: var(--muted); font-size: 13px; max-width: 260px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+  main { display: flex; flex-direction: column; gap: 14px; padding: 16px 28px; overflow: hidden; min-height: 0; }
+  #slide { display: block; max-width: 100%; max-height: 40vh; align-self: center; border-radius: 8px; background: #222; }
+  #text { flex: 1; min-height: 0; overflow-y: auto; font-size: 34px; line-height: 1.55; padding-right: 8px; }
+  .w { border-radius: 4px; padding: 0 1px; }
+  .w.read { color: var(--read); }
+  .w.cur { color: #111; background: var(--cur); }
+
+  aside { background: var(--panel); border-left: 1px solid var(--line); padding: 14px 16px; overflow-y: auto; }
+  aside h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  #list { list-style: none; margin: 0; padding: 0; }
+  #list li { display: grid; grid-template-columns: 22px 1fr auto; gap: 6px; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+  #list li.current { background: #2a2f38; }
+  #list li .mark { font-weight: 700; }
+  #list li.done .mark { color: var(--ok); }
+  #list li.missing .mark { color: var(--muted); }
+  #list li .dur { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 14px; }
+  #totals { margin-top: 12px; color: var(--muted); font-size: 14px; }
+  .keys { margin-top: 16px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+  kbd { background: #2a2f38; border: 1px solid #3a404b; border-radius: 4px; padding: 0 5px; color: var(--fg); font: 12px ui-monospace, Menlo, monospace; }
+
+  footer { grid-column: 1 / 3; background: var(--panel); border-top: 1px solid var(--line); padding: 10px 20px; }
+  .progress { height: 10px; background: #000; border-radius: 5px; overflow: hidden; }
+  #progress-bar { height: 100%; width: 0; background: var(--accent); }
+  .times { display: flex; gap: 28px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .times b { font-size: 20px; }
+  #yours.over { color: var(--warn); }
+  #flash { margin-left: auto; color: var(--muted); }
+  #flash.err { color: var(--rec); font-weight: 700; }
+
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, .78); z-index: 5; }
+  .overlay.show { display: flex; }
+  #count { font-size: 240px; font-weight: 800; color: var(--cur); }
+  #summary .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 24px 30px; max-width: 760px; width: 92%; max-height: 90vh; overflow-y: auto; }
+  #summary table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  #summary td, #summary th { padding: 5px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+  #summary td:first-child, #summary th:first-child { text-align: left; }
+  #summary pre { background: #000; padding: 10px 12px; border-radius: 6px; white-space: pre-wrap; font-size: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <span id="scene-name">Loading...</span>
+  <button id="mode" type="button" title="M: toggle record / rehearse">REC mode</button>
+  <span id="state">ready</span>
+  <label>pace <input id="wpm" type="range" min="100" max="200" step="5" value="150"> <span id="wpm-val">150</span> wpm</label>
+  <label>mic <span class="meter"><span id="meter-bar" style="display:block"></span></span> <span id="meter-db">off</span></label>
+  <span id="mic-name"></span>
+</header>
+
+<main>
+  <img id="slide" alt="slide">
+  <div id="text"></div>
+</main>
+
+<aside>
+  <h2>Scenes</h2>
+  <ul id="list"></ul>
+  <div id="totals"></div>
+  <div class="keys">
+    <kbd>Space</kbd> start / stop take<br>
+    <kbd>R</kbd> retake &nbsp; <kbd>P</kbd> play take<br>
+    <kbd>Enter</kbd> / <kbd>&rarr;</kbd> next &nbsp; <kbd>&larr;</kbd> previous<br>
+    <kbd>-</kbd> / <kbd>+</kbd> pace &nbsp; <kbd>M</kbd> rec / rehearse<br>
+    <kbd>D</kbd> done summary
+  </div>
+</aside>
+
+<footer>
+  <div class="progress"><div id="progress-bar"></div></div>
+  <div class="times">
+    <span>target <b id="target">0.0 s</b></span>
+    <span>you <b id="yours">-</b></span>
+    <span id="flash"></span>
+  </div>
+</footer>
+
+<div id="countdown" class="overlay"><span id="count">3</span></div>
+<div id="summary" class="overlay"><div class="card" id="summary-card"></div></div>
+
+<script>
+"use strict";
+
+// Preferred recording formats, best first. WAV is lossless but few browsers record it;
+// Chrome/Firefox give webm/opus (Firefox also ogg/opus), Safari gives mp4/aac. The file
+// extension always follows the recorder's actual mimeType (extFor), not our request.
+const MIME_CANDIDATES = [
+  "audio/wav",
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/mp4;codecs=mp4a.40.2",
+  "audio/mp4",
+  "audio/ogg;codecs=opus",
+];
+
+function pickMime() {
+  if (typeof MediaRecorder === "undefined") return null;
+  for (const type of MIME_CANDIDATES) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return "";  // none of ours: let the browser use its default
+}
+
+function extFor(mime) {
+  const m = (mime || "").toLowerCase();
+  if (m.includes("wav")) return "wav";
+  if (m.includes("webm")) return "webm";
+  if (m.includes("mp4") || m.includes("aac")) return "m4a";
+  if (m.includes("ogg")) return "ogg";
+  if (m.includes("mpeg")) return "mp3";
+  return "webm";
+}
+
+const $ = (id) => document.getElementById(id);
+const S = {
+  scenes: [], takes: {}, rehearsed: {}, i: 0, wpm: 150, record: true,
+  phase: "idle",            // idle | countdown | running
+  t0: 0, ends: [], k: -1, raf: 0, timers: [],
+  stream: null, ctx: null, analyser: null, micPending: false,
+  recorder: null, audio: null, saving: 0,
+};
+
+// ------------------------------------------------------------------ pacing
+
+function words(sc) { return sc.narration.trim().split(/\s+/); }
+function targetSeconds(sc) { return words(sc).length / S.wpm * 60; }
+
+// End time (s) of each word: the scene's words/wpm duration shared out by weight, so long
+// words and words before a comma or full stop get a little more time.
+function wordEnds(sc) {
+  const ws = words(sc);
+  const weight = ws.map((w) => {
+    let x = 1;
+    if (w.replace(/[^\w]/g, "").length > 7) x += 0.4;
+    if (/[.!?]["')\]]*$/.test(w)) x += 0.8;
+    else if (/[,;:]["')\]]*$/.test(w)) x += 0.35;
+    return x;
+  });
+  const sum = weight.reduce((a, b) => a + b, 0);
+  const total = targetSeconds(sc);
+  let acc = 0;
+  return weight.map((x) => (acc += x) / sum * total);
+}
+
+function fmt(s) { return s == null ? "-" : `${s.toFixed(1)} s`; }
+
+// ------------------------------------------------------------------ rendering
+
+function scene() { return S.scenes[S.i]; }
+
+function renderScene() {
+  const sc = scene();
+  $("scene-name").textContent = `Scene ${sc.n} / ${S.scenes.length}: ${sc.title}`;
+  $("slide").src = `/slides/${sc.n}`;
+  const box = $("text");
+  box.innerHTML = "";
+  words(sc).forEach((w, j) => {
+    const span = document.createElement("span");
+    span.className = "w";
+    span.id = `w${j}`;
+    span.textContent = w;
+    box.appendChild(span);
+    box.appendChild(document.createTextNode(" "));
+  });
+  box.scrollTop = 0;
+  S.ends = wordEnds(sc);
+  S.k = -1;
+  $("progress-bar").style.width = "0";
+  renderTimes(null);
+  renderList();
+}
+
+function renderTimes(liveSeconds) {
+  const sc = scene();
+  const target = targetSeconds(sc);
+  $("target").textContent = fmt(target);
+  const take = S.takes[sc.n];
+  const yours = liveSeconds != null ? liveSeconds
+    : S.record ? (take ? take.duration_s : null) : (S.rehearsed[sc.n] ?? null);
+  $("yours").textContent = fmt(yours);
+  $("yours").classList.toggle("over", yours != null && yours > target * 1.15);
+}
+
+function renderState() {
+  const st = $("state");
+  st.className = "";
+  if (S.phase === "countdown") st.textContent = "get ready";
+  else if (S.phase === "running") {
+    st.textContent = S.record ? "RECORDING" : "rehearsing";
+    st.className = S.record ? "recording" : "rehearsing";
+  } else st.textContent = S.saving ? "saving..." : "ready";
+  const m = $("mode");
+  m.textContent = S.record ? "REC mode" : "Rehearse mode";
+  m.classList.toggle("rehearse", !S.record);
+}
+
+function renderList() {
+  const ul = $("list");
+  ul.innerHTML = "";
+  let total = 0, done = 0;
+  S.scenes.forEach((sc, idx) => {
+    const take = S.takes[sc.n];
+    const li = document.createElement("li");
+    li.className = (take ? "done" : "missing") + (idx === S.i ? " current" : "");
+    li.innerHTML = `<span class="mark">${take ? "&#10003;" : "&middot;"}</span>` +
+      `<span>${String(sc.n).padStart(2, "0")} ${sc.id}</span>` +
+      `<span class="dur">${take ? take.duration_s.toFixed(1) : "-"} / ${targetSeconds(sc).toFixed(0)} s</span>`;
+    li.addEventListener("click", () => go(idx));
+    ul.appendChild(li);
+    if (take) { done += 1; total += take.duration_s; }
+  });
+  $("totals").textContent = `${done} of ${S.scenes.length} recorded, ${total.toFixed(1)} s of speech`;
+}
+
+function flash(msg, isErr = false) {
+  const f = $("flash");
+  f.textContent = msg;
+  f.className = isErr ? "err" : "";
+}
+
+// ------------------------------------------------------------------ karaoke
+
+function tick() {
+  const sc = scene();
+  const t = (performance.now() - S.t0) / 1000;
+  let k = S.ends.findIndex((end) => end > t);
+  if (k === -1) k = S.ends.length;          // every word read
+  if (k !== S.k) {
+    const lo = Math.min(k, Math.max(S.k, 0)), hi = Math.max(k, S.k);
+    for (let j = Math.max(lo - 1, 0); j <= Math.min(hi, S.ends.length - 1); j++) {
+      const el = $(`w${j}`);
+      el.classList.toggle("read", j < k);
+      el.classList.toggle("cur", j === k);
+    }
+    if (k < S.ends.length) $(`w${k}`).scrollIntoView({ block: "center", behavior: "smooth" });
+    S.k = k;
+  }
+  $("progress-bar").style.width = `${Math.min(100, t / targetSeconds(sc) * 100)}%`;
+  renderTimes(t);
+  S.raf = requestAnimationFrame(tick);
+}
+
+function resetWords() {
+  document.querySelectorAll(".w").forEach((el) => el.classList.remove("read", "cur"));
+  S.k = -1;
+}
+
+// ------------------------------------------------------------------ takes
+
+function clearTimers() { S.timers.forEach(clearTimeout); S.timers = []; }
+
+function startTake() {
+  if (!S.scenes.length || S.phase !== "idle") return;
+  if (S.record) {
+    if (typeof MediaRecorder === "undefined") { flash("This browser has no MediaRecorder: use Chrome", true); return; }
+    if (!S.stream) { flash("Microphone not ready: allow it in the address bar", true); ensureMic(); return; }
+  }
+  stopPlayback();
+  resetWords();
+  S.phase = "countdown";
+  renderState();
+  const ov = $("countdown"), num = $("count");
+  ov.classList.add("show");
+  num.textContent = "3";
+  S.timers.push(setTimeout(() => { num.textContent = "2"; }, 1000));
+  // start the recorder a second early so its start-up never clips the first word; the
+  // renderer trims the leading silence
+  S.timers.push(setTimeout(() => { num.textContent = "1"; if (S.record) startRecorder(); }, 2000));
+  S.timers.push(setTimeout(() => {
+    ov.classList.remove("show");
+    S.phase = "running";
+    S.t0 = performance.now();
+    renderState();
+    S.raf = requestAnimationFrame(tick);
+  }, 3000));
+}
+
+function startRecorder() {
+  const type = pickMime();
+  const opts = { audioBitsPerSecond: 160000 };
+  if (type) opts.mimeType = type;
+  let rec;
+  try { rec = new MediaRecorder(S.stream, opts); }
+  catch (e) { rec = new MediaRecorder(S.stream); }   // unsupported options: browser defaults
+  const chunks = [], n = scene().n;
+  rec.discard = false;
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    if (rec.discard) return;
+    const mime = rec.mimeType || type || "";
+    upload(n, new Blob(chunks, { type: mime }), mime);
+  };
+  rec.start(1000);
+  S.recorder = rec;
+}
+
+// Stop the current countdown or take. save=false throws the recording away.
+function stopTake(save) {
+  const wasRunning = S.phase === "running";
+  const elapsed = wasRunning ? (performance.now() - S.t0) / 1000 : null;
+  clearTimers();
+  cancelAnimationFrame(S.raf);
+  $("countdown").classList.remove("show");
+  if (S.recorder && S.recorder.state !== "inactive") {
+    S.recorder.discard = !(save && wasRunning);
+    S.recorder.stop();
+  }
+  S.recorder = null;
+  S.phase = "idle";
+  if (!S.record && wasRunning && save) S.rehearsed[scene().n] = elapsed;
+  renderState();
+  renderTimes(null);
+  if (S.record && wasRunning && save) flash(`Saving scene ${scene().n}...`);
+}
+
+async function upload(n, blob, mime) {
+  if (!blob.size) { flash(`Scene ${n}: the recording was empty, try again`, true); return; }
+  S.saving += 1;
+  renderState();
+  const ext = extFor(mime);
+  try {
+    const res = await fetch(`/api/take?scene=${n}&ext=${ext}&mime=${encodeURIComponent(mime)}`, {
+      method: "POST", headers: { "Content-Type": mime || "application/octet-stream" }, body: blob,
+    });
+    const info = await res.json();
+    if (!res.ok) throw new Error(info.error || `HTTP ${res.status}`);
+    S.takes[n] = info;
+    flash(`Saved scene ${n}: ${info.duration_s.toFixed(1)} s (${info.file})`);
+  } catch (e) {
+    flash(`Scene ${n} NOT saved: ${e.message}`, true);
+  } finally {
+    S.saving -= 1;
+    renderState();
+    renderList();
+    if (scene().n === n && S.phase === "idle") renderTimes(null);
+  }
+}
+
+function retake() {
+  if (S.phase !== "idle") stopTake(false);
+  startTake();
+}
+
+function stopPlayback() {
+  if (S.audio) { S.audio.pause(); S.audio = null; }
+}
+
+function togglePlay() {
+  if (S.audio) { stopPlayback(); flash(""); return; }
+  if (S.phase !== "idle") return;
+  const take = S.takes[scene().n];
+  if (!take) { flash("No take for this scene yet"); return; }
+  const a = new Audio(`/takes/${scene().n}?v=${encodeURIComponent(take.saved_at)}`);
+  a.onended = () => { S.audio = null; flash(""); };
+  S.audio = a;
+  a.play().then(() => flash("Playing take (P to stop)")).catch((e) => { S.audio = null; flash(`Playback failed: ${e.message}`, true); });
+}
+
+// ------------------------------------------------------------------ navigation
+
+function go(idx) {
+  if (S.phase === "running") { flash("Press Space to stop the take first", true); return; }
+  if (S.phase === "countdown") stopTake(false);
+  stopPlayback();
+  if (idx >= S.scenes.length) { showSummary(true); return; }
+  S.i = Math.max(0, idx);
+  renderScene();
+  flash("");
+}
+
+function next() {
+  if (S.phase === "running") stopTake(true);   // finish this take, keep it, move on
+  go(S.i + 1);
+}
+
+function setWpm(v) {
+  const old = targetSeconds(scene());
+  S.wpm = Math.max(100, Math.min(200, v));
+  $("wpm").value = S.wpm;
+  $("wpm-val").textContent = S.wpm;
+  if (S.phase === "running") {   // keep the highlight where it is, re-time the rest
+    const frac = (performance.now() - S.t0) / 1000 / old;
+    S.t0 = performance.now() - frac * targetSeconds(scene()) * 1000;
+  }
+  S.ends = wordEnds(scene());
+  renderTimes(S.phase === "running" ? (performance.now() - S.t0) / 1000 : null);
+  renderList();
+}
+
+function toggleMode() {
+  if (S.phase !== "idle") return;
+  S.record = !S.record;
+  renderState();
+  renderTimes(null);
+  flash(S.record ? "Record mode: takes are saved" : "Rehearse mode: nothing is recorded");
+}
+
+// ------------------------------------------------------------------ summary
+
+function showSummary(auto) {
+  const card = $("summary-card");
+  let rows = "", speech = 0, video = 0, missing = [];
+  S.scenes.forEach((sc) => {
+    const take = S.takes[sc.n], target = targetSeconds(sc);
+    if (take) { speech += take.duration_s; video += S.lead + take.duration_s + S.tail; }
+    else missing.push(String(sc.n).padStart(2, "0"));
+    rows += `<tr><td>${String(sc.n).padStart(2, "0")} ${sc.id}</td><td>${take ? take.duration_s.toFixed(1) : "missing"}</td>` +
+      `<td>${target.toFixed(1)}</td><td>${take ? (take.duration_s - target >= 0 ? "+" : "") + (take.duration_s - target).toFixed(1) : ""}</td></tr>`;
+  });
+  const ok = video >= 150 && video <= 300;
+  card.innerHTML =
+    `<h2 style="margin-top:0">${missing.length ? "Not done yet" : "Done: all scenes recorded"}</h2>` +
+    `<table><tr><th>scene</th><th>yours (s)</th><th>target (s)</th><th>diff</th></tr>${rows}</table>` +
+    `<p>${speech.toFixed(1)} s of speech; the video will be about <b>${video.toFixed(0)} s</b> ` +
+    `(${ok ? "inside" : "OUTSIDE"} the 150-300 s limit; the demo scene can run longer for its typewriter).` +
+    `${missing.length ? ` Missing: scene ${missing.join(", ")}.` : ""}</p>` +
+    `<p>Takes are in <code>${S.voDir}</code>. Check and render:</p>` +
+    `<pre>uv run python scripts/make_video.py --voiceover-check\n` +
+    `uv run python scripts/make_video.py --tts voiceover --reuse-demo --ckpt runs/final.pt --tok runs/tokenizer.json</pre>` +
+    `<p style="color:var(--muted)">D or Esc to close${auto ? "; &larr; to go back" : ""}</p>`;
+  $("summary").classList.add("show");
+}
+
+function hideSummary() { $("summary").classList.remove("show"); }
+
+// ------------------------------------------------------------------ microphone
+
+async function ensureMic() {
+  if (S.stream || S.micPending) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    flash("No microphone API here: open http://127.0.0.1:<port>/ from teleprompter.py in Chrome", true);
+    return;
+  }
+  S.micPending = true;
+  try {
+    // raw voice: no call-style echo cancelling, noise gating or automatic gain riding
+    S.stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+    });
+    const track = S.stream.getAudioTracks()[0];
+    $("mic-name").textContent = track ? track.label : "";
+    S.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = S.ctx.createMediaStreamSource(S.stream);
+    S.analyser = S.ctx.createAnalyser();
+    S.analyser.fftSize = 2048;
+    src.connect(S.analyser);
+    meter();
+    flash("Microphone ready. Space to start scene " + scene().n);
+  } catch (e) {
+    flash(`Microphone blocked (${e.name}): allow it via the icon in the address bar, then reload`, true);
+  } finally {
+    S.micPending = false;
+  }
+}
+
+function meter() {
+  const buf = new Float32Array(S.analyser.fftSize);
+  const loop = () => {
+    S.analyser.getFloatTimeDomainData(buf);
+    let sum = 0, peak = 0;
+    for (const v of buf) { sum += v * v; peak = Math.max(peak, Math.abs(v)); }
+    const db = 20 * Math.log10(Math.sqrt(sum / buf.length) + 1e-9);
+    const bar = $("meter-bar");
+    bar.style.width = `${Math.max(0, Math.min(100, (db + 60) / 60 * 100))}%`;
+    bar.style.background = peak > 0.97 ? "var(--rec)" : db > -35 ? "var(--ok)" : "var(--warn)";
+    $("meter-db").textContent = peak > 0.97 ? "CLIPPING" : `${db.toFixed(0)} dB`;
+    requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+// ------------------------------------------------------------------ input
+
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+  if (S.ctx && S.ctx.state === "suspended") S.ctx.resume();
+  if ($("summary").classList.contains("show")) {
+    if (["d", "D", "Escape", "Enter", "ArrowLeft"].includes(e.key)) {
+      e.preventDefault();
+      hideSummary();
+      if (e.key === "ArrowLeft") go(S.scenes.length - 1);
+    }
+    return;
+  }
+  const actions = {
+    " ": () => (S.phase === "idle" ? startTake() : stopTake(S.phase === "running")),
+    r: retake, R: retake,
+    p: togglePlay, P: togglePlay,
+    Enter: next, ArrowRight: next,
+    ArrowLeft: () => go(S.i - 1),
+    "-": () => setWpm(S.wpm - 5), _: () => setWpm(S.wpm - 5),
+    "=": () => setWpm(S.wpm + 5), "+": () => setWpm(S.wpm + 5),
+    m: toggleMode, M: toggleMode,
+    d: () => showSummary(false), D: () => showSummary(false),
+  };
+  const act = actions[e.key];
+  if (!act) return;
+  e.preventDefault();
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  act();
+});
+
+document.addEventListener("click", () => { if (S.ctx && S.ctx.state === "suspended") S.ctx.resume(); });
+$("wpm").addEventListener("input", (e) => setWpm(Number(e.target.value)));
+$("wpm").addEventListener("change", (e) => e.target.blur());
+$("mode").addEventListener("click", (e) => { e.currentTarget.blur(); toggleMode(); });
+$("summary").addEventListener("click", (e) => { if (e.target.id === "summary") hideSummary(); });
+
+async function init() {
+  try {
+    const res = await fetch("/api/script");
+    const data = await res.json();
+    S.scenes = data.scenes;
+    S.takes = data.takes || {};
+    S.wpm = data.wpm || 150;
+    S.lead = data.lead;
+    S.tail = data.tail;
+    S.voDir = data.voiceover_dir;
+    $("wpm").value = S.wpm;
+    $("wpm-val").textContent = S.wpm;
+    const firstMissing = S.scenes.findIndex((sc) => !S.takes[sc.n]);
+    S.i = firstMissing === -1 ? 0 : firstMissing;
+    renderScene();
+    renderState();
+  } catch (e) {
+    flash(`Could not load the script from the server: ${e.message}`, true);
+    return;
+  }
+  ensureMic();
+}
+
+init();
+</script>
+</body>
+</html>
