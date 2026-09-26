@@ -3,14 +3,18 @@
 Usage:
   uv run python scripts/make_video.py --ckpt runs/final.pt --tok runs/tokenizer.json
   uv run python scripts/make_video.py --ckpt ... --tok ... --script video/script.json \\
-      --out video/gibc_demo.mp4 [--voice Daniel] [--reuse-demo]
+      --out video/gibc_demo.mp4 [--voice bm_george] [--tts say --voice Daniel] [--reuse-demo]
+  uv run python scripts/make_video.py --ckpt ... --tok ... --sample --voice af_heart
 
 Pipeline: substitute {{KEY}} values into script.json; synthesise each narration
-sentence with macOS `say`; render one 1920x1080 slide per scene with PIL; run
-scripts/demo.py's sampler on the demo prompts and animate the output as a typewriter;
-stream every frame into one ffmpeg process with the concatenated narration.
+sentence with Kokoro-82M (local neural TTS, default) or macOS `say`; render one
+1920x1080 slide per scene with PIL; run scripts/demo.py's sampler on the demo prompts
+and animate the output as a typewriter; stream every frame into one ffmpeg process with
+the concatenated narration, loudness-normalised to -16 LUFS.
 Writes the mp4, video/captions.srt, video/slides/*.png and video/demo_output.json.
-Needs ffmpeg/ffprobe on PATH and the macOS `say` command.
+--sample renders only the first scene to video/voice_sample.mp4, for judging a voice.
+Needs ffmpeg/ffprobe on PATH; Kokoro needs espeak-ng (brew install espeak-ng) and
+downloads its weights (~330 MB) from Hugging Face on first use.
 """
 import argparse
 import bisect
@@ -31,7 +35,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 W, H, FPS = 1920, 1080, 25
-SR = 48000                  # narration sample rate
+SR = 24000                  # narration sample rate (Kokoro's native rate)
+OUT_SR = 48000              # AAC sample rate in the mp4
+LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11"   # single-pass EBU R128 normalisation
 LEAD, TAIL = 0.3, 0.6       # silence before / after each scene's narration (s)
 FADE_FRAMES = 8             # cross-fade into each scene
 TYPE_CPS = 40               # typewriter speed, characters per second
@@ -106,14 +112,36 @@ def say_to_pcm(text: str, voice: str, rate: int, workdir: str, tag: str) -> byte
         return w.readframes(w.getnframes())
 
 
-def synthesise(script: dict, workdir: str) -> list[list[tuple[str, bytes]]]:
-    """Per scene, a list of (caption text, pcm) per sentence. Runs `say` in parallel."""
-    voice, rate, pron = script.get("voice", "Samantha"), script.get("rate", 178), script.get("pronounce", {})
+def kokoro_to_pcm(texts: list[str], voice: str, speed: float) -> list[bytes]:
+    """Synthesise each text with Kokoro-82M on the CPU; return mono 16-bit PCM at SR per text.
+    The voice prefix picks the accent: a* American, b* British (e.g. bf_emma, am_michael)."""
+    import warnings
+
+    import numpy as np
+    warnings.filterwarnings("ignore", category=UserWarning)   # torch RNN/weight-norm noise
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    from kokoro import KPipeline
+    pipe = KPipeline(lang_code=voice[0], repo_id="hexgrad/Kokoro-82M")
+    out = []
+    for text in texts:
+        chunks = [r.audio.numpy() for r in pipe(text, voice=voice, speed=speed) if r.audio is not None]
+        audio = np.concatenate(chunks) if chunks else np.zeros(0, dtype=np.float32)
+        out.append((np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes())
+    return out
+
+
+def synthesise(script: dict, workdir: str, tts: str) -> list[list[tuple[str, bytes]]]:
+    """Per scene, a list of (caption text, pcm) per sentence."""
+    voice, pron = script["voice"], script.get("pronounce", {})
     jobs = [(si, ti, s) for si, sc in enumerate(script["scenes"])
             for ti, s in enumerate(sentences(sc["narration"]))]
-    with concurrent.futures.ThreadPoolExecutor(8) as ex:
-        pcms = list(ex.map(lambda j: say_to_pcm(spoken(j[2], pron), voice, rate, workdir,
-                                                f"s{j[0]:02d}_{j[1]:02d}"), jobs))
+    if tts == "kokoro":
+        pcms = kokoro_to_pcm([spoken(s, pron) for _, _, s in jobs], voice, script.get("speed", 1.0))
+    else:  # `say` is single-threaded per call, so run sentences in parallel
+        rate = script.get("rate", 178)
+        with concurrent.futures.ThreadPoolExecutor(8) as ex:
+            pcms = list(ex.map(lambda j: say_to_pcm(spoken(j[2], pron), voice, rate, workdir,
+                                                    f"s{j[0]:02d}_{j[1]:02d}"), jobs))
     out = [[] for _ in script["scenes"]]
     for (si, _, s), pcm in zip(jobs, pcms):
         out[si].append((s, pcm))
@@ -412,7 +440,7 @@ def encode(scenes_frames, audio_path: str, out: str) -> None:
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
            "-r", str(FPS), "-i", "-", "-i", audio_path, "-map", "0:v", "-map", "1:a",
            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
-           "-c:a", "aac", "-b:a", "160k", "-ar", str(SR), "-ac", "2", "-movflags", "+faststart", out]
+           "-af", LOUDNORM, "-c:a", "aac", "-b:a", "160k", "-ar", str(OUT_SR), "-ac", "2", "-movflags", "+faststart", out]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     prev = None
     for n, frame_fn in scenes_frames:
@@ -448,24 +476,34 @@ def main() -> None:
     ap.add_argument("--ckpt", required=True, help="checkpoint for the live demo (final.pt)")
     ap.add_argument("--tok", required=True, help="tokenizer.json")
     ap.add_argument("--script", default=os.path.join(ROOT, "video", "script.json"))
-    ap.add_argument("--out", default=os.path.join(ROOT, "video", "gibc_demo.mp4"))
-    ap.add_argument("--voice", help="override the voice in script.json (see `say -v '?'`)")
+    ap.add_argument("--out", help="default video/gibc_demo.mp4, or video/voice_sample.mp4 with --sample")
+    ap.add_argument("--tts", choices=["kokoro", "say"], default="kokoro", help="narration backend")
+    ap.add_argument("--voice", help="override script.json's voice (kokoro, e.g. bf_emma, bm_george, af_heart) "
+                                    "or say_voice (say, see `say -v '?'`)")
     ap.add_argument("--reuse-demo", action="store_true", help="reuse video/demo_output.json, skip sampling")
+    ap.add_argument("--sample", action="store_true",
+                    help="render only the first scene, to judge a voice (slides and captions.srt untouched)")
     args = ap.parse_args()
-    for tool in ("ffmpeg", "ffprobe", "say"):
+    args.out = args.out or os.path.join(ROOT, "video", "voice_sample.mp4" if args.sample else "gibc_demo.mp4")
+    needed = ("ffmpeg", "ffprobe") + (("say",) if args.tts == "say" else ("espeak-ng",))
+    for tool in needed:
         if not shutil.which(tool):
             sys.exit(f"{tool} not found on PATH")
 
     script = load_script(args.script)
-    if args.voice:
-        script["voice"] = args.voice
+    if args.sample:
+        script["scenes"] = script["scenes"][:1]
+    default_voice = script.get("voice", "bf_emma") if args.tts == "kokoro" else script.get("say_voice", "Samantha")
+    script["voice"] = args.voice or default_voice
     vdir = os.path.dirname(os.path.abspath(args.out))
     slide_dir = os.path.join(vdir, "slides")
     os.makedirs(slide_dir, exist_ok=True)
     work = tempfile.mkdtemp(prefix="gibc_video_")
 
     demo_json = os.path.join(vdir, "demo_output.json")
-    if args.reuse_demo and os.path.exists(demo_json):
+    if not any(sc.get("type") == "demo" for sc in script["scenes"]):
+        samples = []
+    elif args.reuse_demo and os.path.exists(demo_json):
         with open(demo_json) as f:
             samples = json.load(f)["samples"]
     else:
@@ -474,8 +512,8 @@ def main() -> None:
         with open(demo_json, "w") as f:
             json.dump({"ckpt": args.ckpt, "demo": script["demo"], "samples": samples}, f, indent=2)
 
-    print(f"synthesising narration with voice {script['voice']} ...", flush=True)
-    speech = synthesise(script, work)
+    print(f"synthesising narration with {args.tts}, voice {script['voice']} ...", flush=True)
+    speech = synthesise(script, work, args.tts)
 
     scenes, n_total = script["scenes"], len(script["scenes"])
     audio, cues, plan, t0 = bytearray(), [], [], 0.0
@@ -491,7 +529,8 @@ def main() -> None:
             tw.frame(tw.duration).save(os.path.join(slide_dir, f"{idx + 1:02d}_{sc['id']}.png"))
         else:
             frame_fn = static_frames(base)
-            base.save(os.path.join(slide_dir, f"{idx + 1:02d}_{sc['id']}.png"))
+            if not args.sample:
+                base.save(os.path.join(slide_dir, f"{idx + 1:02d}_{sc['id']}.png"))
         n_frames = math.ceil(dur * FPS)
         plan.append((n_frames, frame_fn))
         # audio: lead silence, sentences back to back, pad to the exact scene length
@@ -517,7 +556,7 @@ def main() -> None:
         w.setsampwidth(2)
         w.setframerate(SR)
         w.writeframes(bytes(audio))
-    srt_path = os.path.join(vdir, "captions.srt")
+    srt_path = os.path.join(vdir, "voice_sample.srt" if args.sample else "captions.srt")
     with open(srt_path, "w") as f:
         for i, (a, b, text) in enumerate(cues, 1):
             f.write(f"{i}\n{srt_time(a)} --> {srt_time(b)}\n{text}\n\n")
@@ -532,7 +571,7 @@ def main() -> None:
     words = sum(len(sc["narration"].split()) for sc in scenes)
     print(f"wrote {args.out}: {dur:.1f} s, {size / 1e6:.1f} MB, streams {kinds}, {words} narration words")
     print(f"captions: {srt_path} ({len(cues)} cues); slides: {slide_dir}")
-    if not 150 <= dur <= 300:
+    if not args.sample and not 150 <= dur <= 300:
         print(f"WARNING: duration {dur:.1f} s is outside 150-300 s")
     if "audio" not in kinds:
         print("WARNING: no audio stream")

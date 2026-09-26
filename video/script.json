@@ -1,6 +1,8 @@
 {
   "_comment": "Edit 'values' when the 20B results land; {{KEY}} is substituted everywhere (narration and slides). Anything still containing [FINAL is reported as a leftover placeholder at the end of the render.",
-  "voice": "Samantha",
+  "voice": "bf_emma",
+  "speed": 1.0,
+  "say_voice": "Samantha",
   "rate": 178,
   "values": {
     "RUN": "[FINAL NUMBERS: run]",
@@ -31,7 +33,8 @@
     "uv": "U V",
     "32k": "32 K",
     "count_params.py": "count params",
-    "GPU-hours": "GPU hours"
+    "GPU-hours": "GPU hours",
+    "Alibhai": "Ali-bye"
   },
   "demo": {
     "prompts": [
