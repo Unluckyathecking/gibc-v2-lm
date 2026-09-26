@@ -55,11 +55,11 @@ SOURCES = {
 # fwedu and fwedu_hq must be built from disjoint parquet files, and val docs from
 # files used by neither, so no document appears in two splits.
 
-# Tokens to produce per source (train split), sized for a 15B-token main run:
-# main phase 65% of tokens, decay 35% of which 87.5% is MIX_ANNEAL. Val: VAL_TOKENS_PER_SOURCE each.
+# Tokens to produce per source (train split), sized for a 20B-token main run with ~8% margin:
+# main phase 65% of tokens on MIX_MAIN, decay 35% of which 87.5% is MIX_ANNEAL. Val: VAL_TOKENS_PER_SOURCE each.
 TOKEN_TARGETS = {
-    "tok32k": {"fwedu": 7_200_000_000, "dclm": 3_600_000_000, "finemath": 2_000_000_000,
-               "finepdfs": 600_000_000, "fwedu_hq": 4_000_000_000},
+    "tok32k": {"fwedu": 9_000_000_000, "dclm": 4_600_000_000, "finemath": 2_400_000_000,
+               "finepdfs": 700_000_000, "fwedu_hq": 5_000_000_000},
     "tok16k": {"fwedu": 720_000_000, "dclm": 360_000_000, "finemath": 60_000_000,
                "finepdfs": 60_000_000},
 }
