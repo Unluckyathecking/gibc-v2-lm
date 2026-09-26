@@ -2,7 +2,7 @@
 
 Submission for the Global Innovation Build Challenge V2, Track 01 (TECH, foundational LLM development).
 
-We train a 14-layer decoder-only transformer with 49,822,228 trainable parameters from random initialisation on 20B tokens of openly licensed English web, maths, PDF and Wikipedia text, using our own 32k BPE tokenizer. The recipe is the modded-nanogpt family of speedrun techniques (Muon, QK-norm, ReLU², U-net skips, logit softcap) plus a ResFormer value residual, a warmup-stable-decay schedule, and a quality-data anneal during the decay phase. Every design choice that made it into the main runs was tested first in an 11-arm, 1B-token ablation sweep, reported in full below. Training data is decontaminated against WikiText-103 validation and test at the document level before tokenization. A main run takes about 8 hours on one H100.
+We train a 14-layer decoder-only transformer with 49,822,228 trainable parameters from random initialisation on 20B tokens of openly licensed English web, maths, PDF and Wikipedia text, using our own 32k BPE tokenizer. The recipe is the modded-nanogpt family of speedrun techniques (Muon, QK-norm, ReLU², U-net skips, logit softcap) plus a ResFormer value residual, a warmup-stable-decay schedule, and a quality-data anneal during the decay phase. Every design choice that made it into the main runs was tested first in an 12-arm, 1B-token ablation sweep, reported in full below. Training data is decontaminated against WikiText-103 validation and test at the document level before tokenization. A main run takes about 8 hours on one H100.
 
 Everything in this repository was written by AI coding agents under human direction. See [AI use disclosure](#ai-use-disclosure).
 
@@ -218,7 +218,7 @@ uv run modal run --detach modal_train.py::launch --group main       # main_vres_
 uv run modal run modal_train.py::status                             # progress of every run
 ```
 
-The `sweep` group is every `sweep_*` entry in `RUNS`, which includes `sweep_A_anneal_wiki` on top of the 11 arms in the table. `launch` spawns a driver on Modal that retries a failed run up to 3 times. Each retry resumes from that run's latest checkpoint, so the local client can exit.
+The `sweep` group is every `sweep_*` entry in `RUNS`, which includes `sweep_A_anneal_wiki` on top of the 12 arms in the table. `launch` spawns a driver on Modal that retries a failed run up to 3 times. Each retry resumes from that run's latest checkpoint, so the local client can exit.
 
 ### Evaluation (Modal L4)
 
@@ -250,7 +250,7 @@ uv run python scripts/demo.py --ckpt runs/final.pt --tok runs/tokenizer.json -i 
 | Stage | Hardware | Time |
 |---|---|---|
 | Tokenizer training and tokenization | Modal CPU containers (up to 32 x 8 vCPU in parallel) | {{DATA_WALLCLOCK}} |
-| 1B sweep, 11 arms | 1 x NVIDIA H100 80GB per arm | 21-32 min per arm; 4.81 H100-hours total |
+| 1B sweep, 12 arms | 1 x NVIDIA H100 80GB per arm | 21-32 min per arm; 4.81 H100-hours total |
 | Main runs, 20B tokens each | 1 x NVIDIA H100 80GB per run | about 8 h each (projected); {{MAIN_ANNEAL_GPU_HOURS}} + {{MAIN_MILD_GPU_HOURS}} H100-hours measured |
 | Evaluation | 1 x NVIDIA L4 24GB | 2.2-3.4 min per model (full benchmarks + both WikiText variants) |
 

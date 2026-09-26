@@ -1,0 +1,138 @@
+# Devpost submission copy
+
+Everything to paste into the Devpost form for GIBC V2, Track 01. Replace every `{{MAIN_...}}` placeholder with the same value used in README.md once the main runs are evaluated. Requirements below were checked against https://gibc-v2.devpost.com/rules on 2026-09-26.
+
+## 1. Name and tagline
+
+**Project name:** gibc-v2-lm
+
+**Tagline:** A 49.8M-parameter language model trained from scratch on 20B tokens of human-written text, on one H100 in about 8 hours.
+
+## 2. About the project
+
+### Inspiration
+
+Track 01 caps the model at 50 million trainable parameters, embeddings and output head included. With a 32k vocabulary the embedding alone costs 16.8M, a third of the budget. We wanted to see how much a single rented H100 and the modded-nanogpt speedrun techniques could get out of the remaining two thirds, and to report every number plainly, including the ones that argue against our choices.
+
+### What it does
+
+gibc-v2-lm is a 14-layer decoder-only transformer, width 512, with 49,822,228 trainable parameters. The embedding and output head are one tied tensor, counted once. Counted twice it would be 66,599,444; the README shows both counts and the script that prints them. It is trained from random initialisation on 20B tokens with our own 32k byte-level BPE tokenizer.
+
+The submitted model is {{MAIN_SUBMITTED_RUN}} ({{MAIN_SUBMITTED_VARIANT}} weights). Zero-shot on the full sets, main_vres_anneal scores HellaSwag {{MAIN_ANNEAL_HELLASWAG}}, ARC-Easy {{MAIN_ANNEAL_ARCE}}, PIQA {{MAIN_ANNEAL_PIQA}}, WinoGrande {{MAIN_ANNEAL_WINO}} and WikiText-103 word perplexity {{MAIN_ANNEAL_LMWT_WPPL}}; main_vres_mild scores {{MAIN_MILD_HELLASWAG}}, {{MAIN_MILD_ARCE}}, {{MAIN_MILD_PIQA}}, {{MAIN_MILD_WINO}} and {{MAIN_MILD_LMWT_WPPL}}.
+
+### How we built it
+
+The recipe is Muon on the block matrices and AdamW on the embedding and scalars, with QK-norm, ReLU², U-net skips and a logit softcap from modded-nanogpt, plus a ResFormer value residual. Training uses a warmup-stable-decay schedule; for the last 35% the loader switches to a quality anneal mix of high-scoring FineWeb-Edu, FineMath and 5% decontaminated Wikipedia. The two main runs differ only in how hard the anneal leans on curated data. Each takes about 8 hours on one H100.
+
+Before committing to a 20B run we ran a 12-run, 1B-token ablation sweep: a baseline plus 11 single-change arms, each about half an H100-hour.
+
+The data is all human-written and public: FineWeb-Edu, DCLM-baseline, FineMath, FinePDFs and Wikipedia, under ODC-By, CC-BY-4.0 and CC-BY-SA/GFDL. No synthetic or model-generated text. Every document sharing a 13-gram with WikiText-103 validation or test is dropped, 4,969 in total, plus 16 Wikipedia articles by title. We measured but did not filter the multiple-choice benchmarks: 3 HellaSwag, 1 ARC-Easy, 2 PIQA and 0 WinoGrande items overlap a 300M-token sample of the training data.
+
+Evaluation uses lm-evaluation-harness 0.4.13 and our own WikiText-103 script, which follows lm-eval's normalisation. Everything runs on Modal.
+
+This project was built with Claude Code agents (Claude Opus 5.5 and Claude Fable 5.1), which wrote the code and docs under the direction and review of the human participant, who can explain every component.
+
+### Challenges we ran into
+
+WikiText-103 is made of Wikipedia articles, and the web copies them. Before filtering, a 250M-token sample of our shards contained 4.96% of WikiText-103 test 13-grams, from 6 web documents. The parameter cap was a second problem: the rules do not say how to count a tied matrix, so we report both conventions rather than pick the favourable one. Finally, one seed at 1B tokens gives standard errors of 0.45 to 1.4 benchmark points, so most decisions rest on perplexity and bits per byte.
+
+### Accomplishments that we're proud of
+
+Every change in the main runs was tested first. Value residual cut 1B WikiText perplexity from 57.2 to 54.0 for 13 parameters, and Muon beat AdamW-only 57.2 to 89.0. The whole pipeline reproduces from public data with documented commands, and the README reports the unflattering results too.
+
+### What we learned
+
+At this size the embedding decides the architecture. Perplexity is a far steadier signal than the benchmarks. The quality anneal traded PIQA for ARC-Easy at 1B, which we could not resolve, so both strengths became main runs. The Wikipedia anneal arm finished after the main runs started: ARC-Easy 48.74 and WikiText perplexity 54.70, against 47.98 and 58.51 without Wikipedia.
+
+### What's next
+
+Multiple seeds for the close sweep results, a stacked run with Exclusive Self Attention and NorMuon, which each gave about 1.2 perplexity at 1B, and longer context than 1,024 tokens.
+
+## 3. Built With
+
+One tag per line.
+
+Technologies
+
+```
+python
+pytorch
+torch.optim.muon
+hugging-face-tokenizers
+hugging-face-transformers
+huggingface-hub
+lm-evaluation-harness
+pyarrow
+numpy
+matplotlib
+modal
+nvidia-h100
+nvidia-l4
+uv
+ffmpeg
+kokoro-tts
+espeak-ng
+```
+
+AI tools
+
+```
+claude-code
+claude-opus-5.5
+claude-fable-5.1
+```
+
+Datasets
+
+```
+fineweb-edu
+dclm-baseline
+finemath
+finepdfs
+wikipedia
+wikitext-103
+hellaswag
+arc-easy
+piqa
+winogrande
+```
+
+`transformers`, `huggingface_hub`, PyArrow, NumPy, Matplotlib and espeak-ng are listed because the README's Built With section and the video pipeline use them, and the rules ask for every technology. The four benchmarks are listed as evaluation datasets.
+
+## 4. Screenshots
+
+Upload at least 3. Captions are one line each.
+
+| # | File | Caption |
+|---|---|---|
+| 1 | `results/main/val_bpb.png` (placeholder; see `{{MAIN_CURVES_PNG}}`) | Validation bits per byte for the two 20B-token main runs. |
+| 2 | `results/main/train_loss.png` (placeholder; see `{{MAIN_CURVES_PNG}}`) | Training loss for the two main runs; the anneal mix starts at step 24,795. |
+| 3 | `results/sweep_1B/val_bpb.png` | Validation bits per byte for the 1B-token ablation sweep, all arms overlaid. |
+| 4 | `video/slides/05_sweep.png` | Ablation results: value residual gives the largest WikiText gain, AdamW-only is far behind Muon. |
+| 5 | `video/slides/02_architecture.png` | Parameter count: 49,822,228 with the tied embedding counted once, 66,599,444 counted twice. |
+
+There is no standalone image of the full ablation table; slide 05 shows the key rows. If a screenshot of the raw count printout is wanted, capture the terminal output of `uv run python scripts/count_params.py`. Slides 05 and 02 do not depend on the main runs; items 1 and 2 need the main-run curves rendered with `scripts/plot_curves.py`.
+
+## 5. Submission checklist
+
+| Requirement (rules) | Where it is satisfied | Status |
+|---|---|---|
+| Project description | Form: "About the project", section 2 above | Ready, needs `{{MAIN_...}}` values |
+| Public source repo with README: setup, prerequisites, run instructions | https://github.com/Unluckyathecking/gibc-v2-lm, README "Reproduction" | **Repo is currently private. Make it public before submitting.** |
+| Demo video, 2-5 min, YouTube/Vimeo/Youku, unlisted OK, English audio or subtitles | `video/gibc_demo.mp4` (4 min 9 s, English narration), `video/captions.srt`; form: video link | Re-render with final numbers, upload unlisted, add the SRT as subtitles, paste link |
+| Built With: every technology, library, API, dataset, hardware, AI tools | Form: Built With, section 3 above | Ready |
+| Team: all members by real full name, each with a Devpost account added to the submission | Form: team members | Add Mohammed Alibhai (and any teammates). Under-18 entrants need parental or guardian permission. |
+| At least 3 screenshots | Form: image gallery, section 4 above | 3 available now; 2 need main-run curves |
+| Track selection | Form: Track 01, TECH (foundational LLM development) | Select on submit |
+| Track 01: at most 50,000,000 trainable params incl. embeddings and head; count script and config in repo | README "Parameter count", `scripts/count_params.py`, `gibc/configs.py` | Done; both conventions shown |
+| Track 01: trained from scratch, no pretrained weights, fine-tuning or distillation | README intro, "Data", "AI use disclosure" | Done |
+| Track 01: hardware, total training time, approximate compute in README | README "Hardware, time and compute" | Needs `{{MAIN_*_GPU_HOURS}}`, `{{TOTAL_GPU_HOURS}}`, `{{TOTAL_EVAL_HOURS}}`, `{{DATA_WALLCLOCK}}` |
+| Track 01: HellaSwag, ARC-Easy, PIQA, WinoGrande via lm-eval, WikiText-103 perplexity; numbers and eval script in README | README "Headline results", "Evaluation protocol", `gibc/evaluate.py`, `modal_eval.py` | Needs main-run numbers |
+| AI tools disclosed in Built With and AI-assisted parts noted in README | Built With (section 3), README "AI use disclosure" | Done |
+| Commits pushed after the deadline may be disregarded | Push final README and results before the deadline | Pending |
+
+Judging criteria for Track 01, as the rules word them: Perplexity & Accuracy; Reasoning Performance; Training Efficiency; Innovation; Documentation & Demo. Ties go to the first-listed criterion.
+
+**Deadline:** 1 October 2026, 23:45 UTC+8 = 15:45 UTC = 16:45 BST (UK).
+
+**Before pressing submit:** make the GitHub repo public, confirm every `{{...}}` placeholder is gone from README.md, `video/script.json` and this form, and confirm nothing is left unpushed.
