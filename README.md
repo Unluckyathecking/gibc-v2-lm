@@ -124,7 +124,7 @@ The two main runs share the model, seed, schedule and main-phase mix, and differ
 
 ## Data
 
-No pretrained weights or pretrained tokenizer are used. No LLM-generated or synthetic corpus is used. All sources are public Hugging Face datasets; each licence below was checked against the dataset card on 2026-09-26.
+No pretrained weights, pretrained tokenizer, teacher model or distillation data are used, and no intentionally synthetic or LLM-generated dataset is included. The web-derived sources (FineWeb-Edu, DCLM, FineMath, FinePDFs) are filtered Common Crawl, and we cannot certify that they contain no AI-generated text scraped incidentally from the public web. All sources are public Hugging Face datasets; each licence below was checked against the dataset card on 2026-09-26.
 
 | Source | Hugging Face dataset (subset) | Licence | Used for |
 |---|---|---|---|
@@ -306,7 +306,7 @@ This project was built with AI coding assistants, and we want to be plain about 
 - **What the AI did.** The agents wrote every module in this repository: the model, optimizers, data pipeline, tokenizer training, decontamination, training loop, Modal orchestration, evaluation, tests, plotting and demo scripts. They also wrote this README and `docs/`. They designed and ran the experiments, including launching the Modal jobs, and proposed the conclusions drawn from them. Every module is AI-written under human direction.
 - **What the human did.** Mohammed Alibhai set the goals and constraints, made the decisions (which ideas to test, which sweep results to act on, which configurations became main runs, what to spend), reviewed the code and results, and paid for the compute. He can explain the code and the design choices.
 
-The model itself is trained from scratch. No AI model's weights, outputs or generated text went into its training data.
+The model itself is trained from scratch. No AI model's weights were used, and no intentionally synthetic or LLM-generated dataset, teacher model or distillation data went into its training. The web-derived corpora may incidentally contain AI-generated pages, as any public web crawl since 2023 can; we did not add any.
 
 ## Built with
 

@@ -6,7 +6,7 @@ Everything to paste into the Devpost form for GIBC V2, Track 01. The numbers mat
 
 **Project name:** gibc-v2-lm
 
-**Tagline:** A 49.8M-parameter language model trained from scratch on 20B tokens of human-written text, on one H100 in about 8 hours.
+**Tagline:** A 49.8M-parameter language model trained from scratch on 20B tokens of open web, maths, PDF and Wikipedia text, on one H100 in about 8 hours.
 
 ## 2. About the project
 
@@ -26,7 +26,7 @@ The recipe is Muon on the block matrices and AdamW on the embedding and scalars,
 
 Before committing to a 20B run we ran a 12-run, 1B-token ablation sweep: a baseline plus 11 single-change arms, each about half an H100-hour.
 
-The data is all human-written and public: FineWeb-Edu, DCLM-baseline, FineMath, FinePDFs and Wikipedia, under ODC-By, CC-BY-4.0 and CC-BY-SA/GFDL. No synthetic or model-generated text. Every document sharing a 13-gram with WikiText-103 validation or test is dropped, 4,969 in total, plus 16 Wikipedia articles by title. We measured but did not filter the multiple-choice benchmarks: 3 HellaSwag, 1 ARC-Easy, 2 PIQA and 0 WinoGrande items overlap a 300M-token sample of the training data.
+The data is all public: FineWeb-Edu, DCLM-baseline, FineMath, FinePDFs and Wikipedia, under ODC-By, CC-BY-4.0 and CC-BY-SA/GFDL. No intentionally synthetic or LLM-generated dataset, no teacher model, no distillation data, no pretrained weights and no pretrained tokenizer; the web-derived corpora may incidentally contain AI-generated pages, which no public crawl can rule out. Every document sharing a 13-gram with WikiText-103 validation or test is dropped, 4,969 in total, plus 16 Wikipedia articles by title. We measured but did not filter the multiple-choice benchmarks: 3 HellaSwag, 1 ARC-Easy, 2 PIQA and 0 WinoGrande items overlap a 300M-token sample of the training data.
 
 Evaluation uses lm-evaluation-harness 0.4.13 and our own WikiText-103 script, which follows lm-eval's normalisation. Everything runs on Modal.
 
