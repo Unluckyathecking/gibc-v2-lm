@@ -61,7 +61,7 @@
               "20B tokens of openly licensed English text",
               "Our own 32,768-entry byte-level BPE tokenizer",
               "One H100, about 8 hours per main run",
-              "No pretrained weights, no synthetic data"
+              "No pretrained weights, no intentionally synthetic data"
             ],
             "size": 46
           }
@@ -429,7 +429,7 @@
                 "Built with Claude Code (Claude Opus and Fable agents) under human direction",
                 "Agents wrote the code, ran the experiments, drafted the docs",
                 "Mohammed Alibhai set goals, made the calls, reviewed the work, paid for compute",
-                "The model's training data contains no AI-generated text"
+                "No intentionally synthetic or AI-generated dataset went into its training data"
               ],
               "size": 32
             }
