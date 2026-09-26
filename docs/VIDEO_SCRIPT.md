@@ -35,7 +35,7 @@ Screen recording with voice-over. Times are cumulative targets. Anything in `{{.
 ## 1:05-1:45 How we chose: the 1B sweep
 
 - On screen: `results/sweep_1B/val_bpb.png`, then the ablation table in the README.
-- Say: 11 arms of 1B tokens each, about 25 minutes per arm on an H100, 4.8 GPU-hours in total.
+- Say: 12 arms of 1B tokens each, about 25 minutes per arm on an H100, 5.2 GPU-hours in total.
 - Three findings: Muon beats AdamW by a wide margin (WikiText ppl 57 vs 89). Value residual helps. The quality anneal trades PIQA for ARC-Easy, so we run two strengths.
 - Say it honestly: with one seed, most benchmark differences under 2 points are noise, so we leaned on perplexity.
 
