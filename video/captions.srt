@@ -71,162 +71,182 @@ The learning rate warms up, holds, then decays to zero over the last 35 percent 
 training, and at that point the data switches to higher quality sources.
 
 19
-00:01:25,930 --> 00:01:31,255
-We also average the last few snapshots, and report whichever weights score better.
+00:01:25,930 --> 00:01:29,505
+We also tried averaging the last few snapshots.
 
 20
-00:01:32,180 --> 00:01:36,615
-The data is FineWeb-Edu, DCLM, FineMath, FinePDFs and
+00:01:29,505 --> 00:01:33,255
+It made no difference, so we report the final weights.
 
 21
-00:01:36,615 --> 00:01:40,130
-Wikipedia, all public and openly licensed.
+00:01:34,180 --> 00:01:38,615
+The data is FineWeb-Edu, DCLM, FineMath, FinePDFs and
 
 22
-00:01:40,130 --> 00:01:45,955
-WikiText-103 is built from Wikipedia, which is copied all over the web.
+00:01:38,615 --> 00:01:42,130
+Wikipedia, all public and openly licensed.
 
 23
-00:01:45,955 --> 00:01:49,726
-Before filtering, about five percent of its test 13-grams
+00:01:42,130 --> 00:01:47,955
+WikiText-103 is built from Wikipedia, which is copied all over the web.
 
 24
-00:01:49,726 --> 00:01:52,505
-appeared in a sample of our training data.
+00:01:47,955 --> 00:01:51,726
+Before filtering, about five percent of its test 13-grams
 
 25
-00:01:52,505 --> 00:01:58,623
-So we drop every document sharing any 13-gram with WikiText validation or
+00:01:51,726 --> 00:01:54,505
+appeared in a sample of our training data.
 
 26
-00:01:58,623 --> 00:02:04,155
-test, 4,969 documents in all, plus 16 Wikipedia articles by title.
+00:01:54,505 --> 00:02:00,623
+So we drop every document sharing any 13-gram with WikiText validation or
 
 27
-00:02:04,155 --> 00:02:07,398
-The multiple-choice benchmarks are not filtered, but
+00:02:00,623 --> 00:02:06,155
+test, 4,969 documents in all, plus 16 Wikipedia articles by title.
 
 28
-00:02:07,398 --> 00:02:10,205
-their measured overlap is a handful of items.
+00:02:06,155 --> 00:02:09,398
+The multiple-choice benchmarks are not filtered, but
 
 29
-00:02:11,140 --> 00:02:15,223
-Before spending eight GPU-hours on a main run, we ran eleven
+00:02:09,398 --> 00:02:12,205
+their measured overlap is a handful of items.
 
 30
-00:02:15,223 --> 00:02:18,965
-one-billion-token experiments, each changing one thing.
+00:02:13,140 --> 00:02:17,157
+Before spending eight GPU-hours on a main run, we ran twelve
 
 31
-00:02:18,965 --> 00:02:22,415
-Muon beat AdamW by a wide margin.
+00:02:17,157 --> 00:02:20,840
+one-billion-token experiments, each changing one thing.
 
 32
-00:02:22,415 --> 00:02:27,474
-The value residual gave the biggest perplexity gain, 57.2 down
+00:02:20,840 --> 00:02:24,290
+Muon beat AdamW by a wide margin.
 
 33
-00:02:27,474 --> 00:02:31,390
-to 54.0, for 13 extra parameters, so we kept it.
+00:02:24,290 --> 00:02:29,349
+The value residual gave the biggest perplexity gain, 57.2 down
 
 34
-00:02:31,390 --> 00:02:34,947
-The quality anneal raised ARC-Easy but lowered PIQA,
+00:02:29,349 --> 00:02:33,265
+to 54.0, for 13 extra parameters, so we kept it.
 
 35
-00:02:34,947 --> 00:02:37,615
-so our two main runs try two strengths.
+00:02:33,265 --> 00:02:36,822
+The quality anneal raised ARC-Easy but lowered PIQA,
 
 36
-00:02:37,615 --> 00:02:41,734
-Each arm is one seed, so benchmark gaps under about two points
+00:02:36,822 --> 00:02:39,490
+so our two main runs try two strengths.
 
 37
-00:02:41,734 --> 00:02:44,990
-are noise, and we leaned on perplexity to decide.
+00:02:39,490 --> 00:02:43,609
+Each arm is one seed, so benchmark gaps under about two points
 
 38
-00:02:45,900 --> 00:02:49,767
-Here are the final numbers for the submitted model, [FINAL
+00:02:43,609 --> 00:02:46,865
+are noise, and we leaned on perplexity to decide.
 
 39
-00:02:49,767 --> 00:02:53,300
-NUMBERS: run], trained on the full 20 billion tokens.
+00:02:47,780 --> 00:02:51,093
+Here are the final numbers for the submitted model,
 
 40
-00:02:53,300 --> 00:02:56,325
-HellaSwag, [FINAL NUMBERS] percent.
+00:02:51,093 --> 00:02:54,730
+main_vres_anneal, trained on the full 20 billion tokens.
 
 41
-00:02:56,325 --> 00:02:59,250
-ARC-Easy, [FINAL NUMBERS] percent.
+00:02:54,730 --> 00:02:58,230
+HellaSwag, 31.87 percent.
 
 42
-00:02:59,250 --> 00:03:02,075
-PIQA, [FINAL NUMBERS] percent.
+00:02:58,230 --> 00:03:01,730
+ARC-Easy, 55.18 percent.
 
 43
-00:03:02,075 --> 00:03:05,150
-WinoGrande, [FINAL NUMBERS] percent.
+00:03:01,730 --> 00:03:05,080
+PIQA, 61.92 percent.
 
 44
-00:03:05,150 --> 00:03:09,250
-WikiText-103 perplexity, [FINAL NUMBERS].
+00:03:05,080 --> 00:03:08,580
+WinoGrande, 51.62 percent.
 
 45
-00:03:09,250 --> 00:03:14,851
-[FINAL NUMBERS: one sentence on how this compares with the 1B run.] All benchmarks
+00:03:08,580 --> 00:03:13,330
+WikiText-103 perplexity, 39.42.
 
 46
-00:03:14,851 --> 00:03:19,700
-are zero-shot, on the full evaluation sets, with lm-evaluation-harness.
+00:03:13,330 --> 00:03:17,934
+Against the one-billion-token sweep run, ARC-Easy is up eight
 
 47
-00:03:20,620 --> 00:03:24,295
-Now the model itself, running locally on a laptop.
+00:03:17,934 --> 00:03:21,255
+points and perplexity is down from 61 to 39.
 
 48
-00:03:24,295 --> 00:03:27,470
-We give it three prompts and let it continue.
+00:03:21,255 --> 00:03:25,512
+The PIQA drop the strong anneal showed at one billion tokens did not
 
 49
-00:03:27,470 --> 00:03:31,745
-The text is grammatical and keeps the register of the prompt.
+00:03:25,512 --> 00:03:29,080
+appear at twenty billion, so we submit the strong anneal.
 
 50
-00:03:31,745 --> 00:03:35,292
-It also gets facts wrong and repeats itself, which is
+00:03:29,080 --> 00:03:31,962
+All benchmarks are zero-shot, on the full
 
 51
-00:03:35,292 --> 00:03:38,170
-what we expect at fifty million parameters.
+00:03:31,962 --> 00:03:35,055
+evaluation sets, with lm-evaluation-harness.
 
 52
-00:03:40,020 --> 00:03:45,260
-Everything needed to reproduce this is in the repository. uv installs the pinned
+00:03:35,980 --> 00:03:39,655
+Now the model itself, running locally on a laptop.
 
 53
-00:03:45,260 --> 00:03:49,845
-environment, and the Modal scripts build the data, train and evaluate.
+00:03:39,655 --> 00:03:42,830
+We give it three prompts and let it continue.
 
 54
-00:03:49,845 --> 00:03:55,645
-On AI use: this project was built with Claude Code agents under human direction.
+00:03:42,830 --> 00:03:47,105
+The text is grammatical and keeps the register of the prompt.
 
 55
-00:03:55,645 --> 00:04:00,395
-The agents wrote the code, ran the experiments and drafted the docs.
+00:03:47,105 --> 00:03:50,652
+It also gets facts wrong and repeats itself, which is
 
 56
-00:04:00,395 --> 00:04:03,569
-Mohammed Alibhai set the goals, made the decisions,
+00:03:50,652 --> 00:03:53,530
+what we expect at fifty million parameters.
 
 57
-00:04:03,569 --> 00:04:06,245
-reviewed the work and paid for the compute.
+00:03:56,300 --> 00:04:01,540
+Everything needed to reproduce this is in the repository. uv installs the pinned
 
 58
-00:04:06,245 --> 00:04:08,170
+00:04:01,540 --> 00:04:06,125
+environment, and the Modal scripts build the data, train and evaluate.
+
+59
+00:04:06,125 --> 00:04:11,925
+On AI use: this project was built with Claude Code agents under human direction.
+
+60
+00:04:11,925 --> 00:04:16,675
+The agents wrote the code, ran the experiments and drafted the docs.
+
+61
+00:04:16,675 --> 00:04:19,849
+Mohammed Alibhai set the goals, made the decisions,
+
+62
+00:04:19,849 --> 00:04:22,525
+reviewed the work and paid for the compute.
+
+63
+00:04:22,525 --> 00:04:24,450
 Thanks for watching.
 

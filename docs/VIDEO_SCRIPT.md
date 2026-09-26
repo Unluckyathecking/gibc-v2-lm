@@ -5,7 +5,7 @@
 The video is rendered automatically; the narration and slides live in [`video/script.json`](../video/script.json), which is the source of truth (the outline below is the original plan it was written from).
 
 ```bash
-uv run modal volume get gibc-runs <submitted_run>/final.pt runs/final.pt
+uv run modal volume get gibc-runs main_vres_anneal/final.pt runs/final.pt
 uv run modal volume get gibc-data tok/tok32k/tokenizer.json runs/tokenizer.json
 uv run python scripts/make_video.py --ckpt runs/final.pt --tok runs/tokenizer.json
 ```
@@ -14,16 +14,16 @@ This samples the demo prompts from the checkpoint, synthesises the narration wit
 
 The voice is `voice` in `script.json` (default `bf_emma`, British female; `speed` 1.0). Override it with `--voice`: British `bf_emma`, `bf_isabella`, `bm_george`, `bm_lewis`, or American `af_heart`, `am_michael` (the first letter picks the accent; full list on the model card). To judge a voice quickly, `--sample --voice bm_george` renders only the first scene to `video/voice_sample.mp4` in about 10 seconds. `--tts say` falls back to macOS `say`, using `say_voice` and `rate` from `script.json` (or `--voice Daniel`).
 
-To finish the video once the main runs are evaluated, edit only the `values` block at the top of `video/script.json` (every `[FINAL NUMBERS]` entry: run name, benchmark scores, WikiText perplexity, val bits/byte, GPU hours, weights variant, a one-sentence remark and the demo checkpoint label) and rerun the command with the final checkpoint. The script lists any placeholder still left when it finishes. `pronounce` maps written terms to how the voice should say them; captions keep the written form.
+The `values` block at the top of `video/script.json` holds the final numbers for the submitted model, `main_vres_anneal` (final weights): run name, benchmark scores, WikiText perplexity, val bits/byte, GPU hours, weights variant, a one-sentence remark and the demo checkpoint label. To change them, edit that block and rerun the command. The script lists any `[FINAL` placeholder still left when it finishes. `pronounce` maps written terms to how the voice should say them; captions keep the written form.
 
 ## Original outline
 
-Screen recording with voice-over. Times are cumulative targets. Anything in `{{...}}` is filled in once the main runs finish.
+Screen recording with voice-over. Times are cumulative targets. The final numbers are filled in below.
 
 ## 0:00-0:20 What this is
 
 - On screen: README title and the headline results table.
-- Say: a 49.8M-parameter language model trained from scratch on 20B tokens of openly licensed text, with our own tokenizer, on one H100 in about 8 hours. It scores {{HEADLINE_ONE_LINE}} on HellaSwag, ARC-Easy, PIQA and WinoGrande, and has WikiText-103 perplexity {{MAIN_LMWT_WPPL}}.
+- Say: a 49.8M-parameter language model trained from scratch on 20B tokens of openly licensed text, with our own tokenizer, on one H100 in about 8 hours. It scores 31.9, 55.2, 61.9 and 51.6 on HellaSwag, ARC-Easy, PIQA and WinoGrande, and has WikiText-103 perplexity 39.4 (lm-eval-style windows).
 
 ## 0:20-1:05 Architecture and the parameter budget
 
@@ -47,9 +47,9 @@ Screen recording with voice-over. Times are cumulative targets. Anything in `{{.
 
 ## 2:15-2:50 Main-run curves and final numbers
 
-- On screen: main-run training loss and val bpb curves ({{MAIN_CURVES_PNG}}), with the point where the anneal starts at 13B tokens marked.
+- On screen: main-run training loss and val bpb curves (`results/main/train_loss.png`, `results/main/val_bpb.png`), with the point where the anneal starts at 13B tokens marked.
 - Say: both runs use the same recipe for the first 65% of training and differ in the anneal mix.
-- On screen: headline table. Read the submitted model's numbers: {{MAIN_SUBMITTED_RUN}}, HellaSwag {{...}}, ARC-Easy {{...}}, PIQA {{...}}, WinoGrande {{...}}, WikiText {{...}}.
+- On screen: headline table. Read the submitted model's numbers: main_vres_anneal, HellaSwag 31.87, ARC-Easy 55.18, PIQA 61.92, WinoGrande 51.62, WikiText 39.42.
 - Say: evaluation uses lm-evaluation-harness 0.4.13, zero-shot, on the full sets. The command is `modal run modal_eval.py::main --run ...`.
 
 ## 2:50-3:40 Live generation

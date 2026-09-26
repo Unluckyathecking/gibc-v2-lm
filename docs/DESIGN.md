@@ -49,6 +49,15 @@ Why each part of the model and pipeline is there, and what we considered and dro
 
 **Filtering the multiple-choice benchmarks from training data.** We measure 13-gram overlap with HellaSwag, ARC-Easy, PIQA and WinoGrande items but do not drop documents for it. We chose to report the overlap rather than act on it; it is in the README so readers can judge.
 
+## What the 20B runs showed
+
+The two main runs share everything except the anneal mix, so they test the one question the 1B sweep left open.
+
+- **The anneal trade-off did not survive scale.** At 1B the strong anneal gained ARC-Easy and lost 2.7 points of PIQA. At 20B, `main_vres_anneal` still leads the mild run on ARC-Easy (55.18 vs 53.24) but PIQA is level (61.92 vs 61.97), as is WinoGrande (51.62 vs 51.46). The stronger anneal is the better choice, and it is the submitted model.
+- **The mild anneal is slightly better on perplexity.** WikiText-103 (stride 512) is 34.65 against 35.21, val bpb 0.9825 against 0.9860, and HellaSwag 32.15 against 31.87 (within noise). Keeping more general web text in the decay helps text modelling a little, as expected, but not enough to outweigh ARC-Easy. The runs also read the main-mix shards in different orders, so part of this gap may be data order.
+- **Value residual plus the Wikipedia anneal, untested together at 1B, worked.** From the 1B `sweep_A_vres` checkpoint to the 20B submitted model, WikiText perplexity fell from 53.95 to 35.21, HellaSwag rose 3.2 points and ARC-Easy 8.0.
+- **Snapshot averaging was not worth it.** The mean of the last four snapshots is within 0.5 points of the final weights on every benchmark. With a linear decay to zero the last 750 steps barely move the weights, so there is nothing to average out. We report the final weights.
+
 ## Sponsor tooling considered and declined
 
 Adaption Labs (a GIBC sponsor) offers participants platform credits. We read its docs and did not use it:

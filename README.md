@@ -8,24 +8,40 @@ Everything in this repository was written by AI coding agents under human direct
 
 ## Headline results
 
-Final numbers for the two 20B-token main runs. "final" is the weights after the last step; "avg" is the elementwise mean of the last 4 decay-phase snapshots (250 steps apart).
+Final numbers for the two 20B-token main runs, final weights (after the last step). Accuracies are in percent.
 
-| | main_vres_anneal | main_vres_mild |
+| | **main_vres_anneal** (submitted) | main_vres_mild |
 |---|---|---|
-| HellaSwag acc_norm | {{MAIN_ANNEAL_HELLASWAG}} | {{MAIN_MILD_HELLASWAG}} |
-| ARC-Easy acc / acc_norm | {{MAIN_ANNEAL_ARCE}} / {{MAIN_ANNEAL_ARCE_N}} | {{MAIN_MILD_ARCE}} / {{MAIN_MILD_ARCE_N}} |
-| PIQA acc / acc_norm | {{MAIN_ANNEAL_PIQA}} / {{MAIN_ANNEAL_PIQA_N}} | {{MAIN_MILD_PIQA}} / {{MAIN_MILD_PIQA_N}} |
-| WinoGrande acc | {{MAIN_ANNEAL_WINO}} | {{MAIN_MILD_WINO}} |
-| WikiText-103 test word ppl, lm-eval-style windows | {{MAIN_ANNEAL_LMWT_WPPL}} | {{MAIN_MILD_LMWT_WPPL}} |
-| WikiText-103 test word ppl, stride 512 | {{MAIN_ANNEAL_WT_WPPL}} | {{MAIN_MILD_WT_WPPL}} |
-| WikiText-103 test bits/byte, stride 512 | {{MAIN_ANNEAL_WT_BPB}} | {{MAIN_MILD_WT_BPB}} |
-| Held-out val bits/byte | {{MAIN_ANNEAL_VAL_BPB}} | {{MAIN_MILD_VAL_BPB}} |
-| Weights reported | {{MAIN_ANNEAL_VARIANT}} | {{MAIN_MILD_VARIANT}} |
-| H100 hours | {{MAIN_ANNEAL_GPU_HOURS}} | {{MAIN_MILD_GPU_HOURS}} |
+| HellaSwag acc_norm | 31.87 | 32.15 |
+| ARC-Easy acc / acc_norm | 55.18 / 47.85 | 53.24 / 47.22 |
+| PIQA acc / acc_norm | 61.92 / 60.28 | 61.97 / 60.28 |
+| WinoGrande acc | 51.62 | 51.46 |
+| WikiText-103 test word ppl, lm-eval-style windows | 39.42 | 38.76 |
+| WikiText-103 test word ppl, stride 512 | 35.21 | 34.65 |
+| WikiText-103 test bits/byte, stride 512 | 0.9608 | 0.9565 |
+| Held-out val bits/byte | 0.9860 | 0.9825 |
+| Weights reported | final | final |
+| H100 hours | 8.58 | 8.36 |
 
-Submitted model: **{{MAIN_SUBMITTED_RUN}}** ({{MAIN_SUBMITTED_VARIANT}} weights). All benchmarks are zero-shot on the full evaluation sets (no `--limit`). Standard errors are about ±0.45 points on HellaSwag, ±1.0 on ARC-Easy, ±1.1 on PIQA and ±1.4 on WinoGrande. Raw JSON: {{MAIN_EVAL_JSON_PATHS}}.
+Submitted model: **main_vres_anneal** (final weights), 49,822,228 trainable parameters counted with the tied embedding and head once, 66,599,444 counted twice (see [Parameter count](#parameter-count)). All benchmarks are zero-shot on the full evaluation sets (no `--limit`). Standard errors are about ±0.45 points on HellaSwag, ±1.0 on ARC-Easy, ±1.1 on PIQA and ±1.4 on WinoGrande. Raw JSON: [`results/main/main_vres_anneal_eval_final.json`](results/main/main_vres_anneal_eval_final.json), [`results/main/main_vres_mild_eval_final.json`](results/main/main_vres_mild_eval_final.json), and the `*_eval_avg.json` files next to them; summary in [`results/main/eval_table.txt`](results/main/eval_table.txt).
 
-Training curves: {{MAIN_CURVES_PNG}}.
+**Why the anneal run.** It is 1.9 points better on ARC-Easy (55.18 vs 53.24; one standard error is about 1.0) at equal PIQA and WinoGrande. The mild run is 0.3 points better on HellaSwag, which is within noise, and 0.56 lower on stride-512 WikiText perplexity (1.6%), which is small but real. We submit the anneal run and report the mild run as the second main run and an ablation of anneal strength.
+
+**What 20B tokens changed.** At 1B tokens the strong anneal cost 2.7 points of PIQA. At 20B that loss did not appear (61.92 vs 61.97), while the stronger anneal's ARC-Easy gain held. Against the 1B `sweep_A_vres` checkpoint, the submitted model gains 3.2 points on HellaSwag and 8.0 on ARC-Easy, and WikiText perplexity (stride 512) falls from 53.95 to 35.21. For scale, Pythia-70M, trained on 300B tokens, reports HellaSwag 26.6, ARC-Easy 36.9 and PIQA 60.0; its recipe, data and parameter count differ from ours, so this is a rough reference, not a controlled comparison.
+
+**Checkpoint averaging gave no gain.** The mean of the last 4 decay-phase snapshots (250 steps apart) scores within 0.5 points of the final weights on every benchmark and within 0.05 on WikiText perplexity, in both runs. After a linear decay to zero learning rate the last snapshots are nearly identical, so there is little to average. The numbers are in `eval_table.txt`.
+
+Training curves for both main runs: [training loss](results/main/train_loss.png), [validation bpb](results/main/val_bpb.png), [throughput](results/main/tok_per_s.png). The anneal mix starts at step 24,795 (13B tokens).
+
+![Validation bits per byte, main runs](results/main/val_bpb.png)
+
+## Screenshots
+
+| Image | What it shows |
+|---|---|
+| [`results/main/train_loss.png`](results/main/train_loss.png) | Training loss for both 20B-token main runs; the anneal mix starts at step 24,795. |
+| [`results/main/val_bpb.png`](results/main/val_bpb.png) | Held-out validation bits per byte for both main runs. |
+| [`results/sweep_1B/val_bpb.png`](results/sweep_1B/val_bpb.png) | Validation bits per byte for all 12 arms of the 1B-token sweep. |
 
 ## Architecture
 
@@ -237,27 +253,29 @@ Each command prints a results table and writes `{run}/evals/{variant}.json` to t
 uv run modal volume get gibc-runs sweep_A/log.jsonl results/sweep_1B/logs/sweep_A/log.jsonl   # per run
 uv run python scripts/plot_curves.py results/sweep_1B/logs/*/log.jsonl   # writes results/{train_loss,val_bpb,tok_per_s}.png; the sweep's copies are in results/sweep_1B/
 
-uv run modal volume get gibc-runs {{MAIN_SUBMITTED_RUN}}/final.pt runs/final.pt
+uv run modal volume get gibc-runs main_vres_anneal/final.pt runs/final.pt
 uv run modal volume get gibc-data tok/tok32k/tokenizer.json runs/tokenizer.json
 uv run python scripts/demo.py --ckpt runs/final.pt --tok runs/tokenizer.json \
     --prompt "The capital of France is" --prompt "Photosynthesis is"
 uv run python scripts/demo.py --ckpt runs/final.pt --tok runs/tokenizer.json -i   # interactive
 ```
 
-`demo.py` runs on a laptop (Apple MPS or CPU) with temperature 0.8, top-k 50 and up to 200 new tokens by default (`--temperature 0` is greedy). Samples from the 1B-token `sweep_A_vres` checkpoint are in [`results/samples/sweep_A_vres_1B.md`](results/samples/sweep_A_vres_1B.md).
+`demo.py` runs on a laptop (Apple MPS or CPU) with temperature 0.8, top-k 50 and up to 200 new tokens by default (`--temperature 0` is greedy). Samples from the submitted model are in [`results/samples/main_vres_anneal_20B.md`](results/samples/main_vres_anneal_20B.md), and the same prompts on the 1B-token `sweep_A_vres` checkpoint are in [`results/samples/sweep_A_vres_1B.md`](results/samples/sweep_A_vres_1B.md).
 
 ## Hardware, time and compute
 
 | Stage | Hardware | Time |
 |---|---|---|
-| Tokenizer training and tokenization | Modal CPU containers (up to 32 x 8 vCPU in parallel) | {{DATA_WALLCLOCK}} |
+| Tokenizer training and tokenization | Modal CPU containers (up to 32 x 8 vCPU in parallel) | not timed end to end (several resumable passes); CPU only, no GPU |
 | 1B sweep, 12 arms | 1 x NVIDIA H100 80GB per arm | 21-32 min per arm; 5.23 H100-hours total |
-| Main runs, 20B tokens each | 1 x NVIDIA H100 80GB per run | about 8 h each (projected); {{MAIN_ANNEAL_GPU_HOURS}} + {{MAIN_MILD_GPU_HOURS}} H100-hours measured |
+| Main runs, 20B tokens each | 1 x NVIDIA H100 80GB per run | 8.43 h (anneal) and 8.33 h (mild) wall-clock; 8.58 + 8.36 = 16.94 H100-hours |
 | Evaluation | 1 x NVIDIA L4 24GB | 2.2-3.4 min per model (full benchmarks + both WikiText variants) |
 
-Measured training throughput (median tokens/s over each run's log, first 50 steps excluded): 845k for Config A, 800k with value residual, 632k for the weight-shared alt1, 963k for the 16k-vocabulary alt2. Per-arm figures are in `eval_table.csv`. The main runs train at about 830k tokens/s (0.63 s per step) and pause about 37 s for each validation pass every 250 steps, which puts a 38,146-step run at about 8.2 hours of wall-clock.
+Measured training throughput (median tokens/s over each run's log, first 50 steps excluded): 845k for Config A, 800k with value residual, 632k for the weight-shared alt1, 963k for the 16k-vocabulary alt2. Per-arm figures are in `eval_table.csv`. The main runs trained at a median 826k tokens/s (0.63 s per step) and pause about 37 s for each validation pass every 250 steps, which puts an uninterrupted 38,146-step run at about 8.2 hours. The measured times above are higher because they include `torch.compile` warm-up and the steps redone after the interruption described below. H100-hours are the GPU time each run's status file records (`results/main/*_status.json`), redone steps included; wall-clock is the trainer's elapsed time.
 
-Approximate training compute uses 6·N·D with N = 49.8M (the tied head's matmul costs as much as a separate head would), plus about 15% for causal attention at 1,024 context: roughly 3.4e17 FLOPs per 1B-token sweep arm and 6.9e18 FLOPs per 20B-token main run. At 800-845k tokens/s that is about 27-29% of the H100's dense bf16 peak. Total project compute: {{TOTAL_GPU_HOURS}} H100-hours for training (sweep plus main runs, including smoke tests) and {{TOTAL_EVAL_HOURS}} L4-hours for evaluation.
+Approximate training compute uses 6·N·D with N = 49.8M (the tied head's matmul costs as much as a separate head would), plus about 15% for causal attention at 1,024 context: roughly 3.4e17 FLOPs per 1B-token sweep arm and 6.9e18 FLOPs per 20B-token main run. At 800-845k tokens/s that is about 27-29% of the H100's dense bf16 peak. Total project compute: about 22.3 H100-hours for training (12 sweep arms 5.23, two main runs 16.94, smoke tests about 0.1), about 2 L4-hours for evaluation (approximate), and CPU only for tokenizer training and tokenization. The approximate total cost on Modal was about USD 120.
+
+**Run history.** Both main runs were interrupted at 17:57 UK time on 26 September 2026, when the Modal workspace hit its spend limit: `main_vres_anneal` at step 37,209 and `main_vres_mild` at step 36,653, of 38,146. After the limit was raised, each resumed from its last full checkpoint (step 36,564 and step 34,562). A resume restores the model, optimizer state, RNG state and data-loader cursors. For `main_vres_anneal` there was one extra step: the data manifest had grown after the run started, so its checkpoint's shard order was pinned to the manifest it started with ([`scripts/pin_loader_state.py`](scripts/pin_loader_state.py)), and the pinned loader was checked to yield the same batches, batch for batch. On a GPU in bf16 with `torch.compile`, a resumed run can still differ from an uninterrupted one by floating-point noise. For `main_vres_mild`, when the limit was lifted Modal auto-restarted a stale driver, so for about 25 minutes two trainers ran in parallel from the same checkpoint, with identical state, until the extra one was stopped. The volume kept one writer's copy of each file. The only consequence is that `log.jsonl` is missing the lines for steps 36,654-36,871 (218 of 38,146); checkpoints, snapshots and final weights are unaffected.
 
 ## Evaluation protocol
 
@@ -304,6 +322,7 @@ PyTorch 2.11 (including `torch.optim.Muon`), Hugging Face `tokenizers`, `transfo
 - **Small-model benchmark scores.** At this scale HellaSwag and WinoGrande sit only a few points above chance (25% and 50%), so small differences in those two carry little information.
 - **Evaluation numerics.** Evaluation runs in bf16 on an L4, which can differ in the last digit from an fp32 run. Our lm-eval-style WikiText number is close to, but not bit-identical with, lm-eval's own `wikitext` task.
 - **Context.** The context is 1,024 tokens, and attention crosses document boundaries during training.
+- **Interrupted main runs.** Both main runs were stopped by a spend limit near the end and resumed from checkpoints (see [Run history](#hardware-time-and-compute)). The resume is exact in data and optimizer state, but in bf16 with `torch.compile` it may differ from an uninterrupted run by floating-point noise, and `main_vres_mild`'s training log is missing 218 steps (36,654-36,871) because two trainers briefly wrote to the same run.
 
 ## Citations
 

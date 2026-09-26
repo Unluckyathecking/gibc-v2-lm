@@ -5,17 +5,17 @@
   "say_voice": "Samantha",
   "rate": 178,
   "values": {
-    "RUN": "[FINAL NUMBERS: run]",
-    "WEIGHTS": "[FINAL NUMBERS: final/avg]",
-    "HS": "[FINAL NUMBERS]",
-    "ARCE": "[FINAL NUMBERS]",
-    "PIQA": "[FINAL NUMBERS]",
-    "WINO": "[FINAL NUMBERS]",
-    "WT_LMEVAL": "[FINAL NUMBERS]",
-    "VAL_BPB": "[FINAL NUMBERS]",
-    "GPU_HOURS": "[FINAL NUMBERS]",
-    "FINAL_REMARK": "[FINAL NUMBERS: one sentence on how this compares with the 1B run.]",
-    "DEMO_MODEL": "Checkpoint: sweep_A_vres, 1B-token sweep run. [FINAL NUMBERS: swap for the submitted model]"
+    "RUN": "main_vres_anneal",
+    "WEIGHTS": "final (after the last step)",
+    "HS": "31.87",
+    "ARCE": "55.18",
+    "PIQA": "61.92",
+    "WINO": "51.62",
+    "WT_LMEVAL": "39.42",
+    "VAL_BPB": "0.9860",
+    "GPU_HOURS": "8.58",
+    "FINAL_REMARK": "Against the one-billion-token sweep run, ARC-Easy is up eight points and perplexity is down from 61 to 39. The PIQA drop the strong anneal showed at one billion tokens did not appear at twenty billion, so we submit the strong anneal.",
+    "DEMO_MODEL": "Checkpoint: main_vres_anneal, final weights, 20B tokens (the submitted model)"
   },
   "pronounce": {
     "PIQA": "pie-kah",
@@ -142,7 +142,7 @@
     },
     {
       "id": "recipe",
-      "narration": "Training follows the modded-nanogpt speedrun recipe. Muon updates the matrices inside the blocks, and AdamW updates the embedding and the scalars. The learning rate warms up, holds, then decays to zero over the last 35 percent of training, and at that point the data switches to higher quality sources. We also average the last few snapshots, and report whichever weights score better.",
+      "narration": "Training follows the modded-nanogpt speedrun recipe. Muon updates the matrices inside the blocks, and AdamW updates the embedding and the scalars. The learning rate warms up, holds, then decays to zero over the last 35 percent of training, and at that point the data switches to higher quality sources. We also tried averaging the last few snapshots. It made no difference, so we report the final weights.",
       "slide": {
         "kicker": "Training recipe",
         "title": "Muon + AdamW, warmup-stable-decay, quality anneal",
@@ -153,7 +153,7 @@
               "Warmup 1%, constant, then linear decay to 0 over the last 35%",
               "524,288 tokens per step: 38,146 steps for 20B tokens",
               "Quality anneal: at decay start, switch to FineWeb-Edu int_score ≥ 4, FineMath, Wikipedia",
-              "Checkpoint averaging: mean of the last 4 decay snapshots, 250 steps apart",
+              "Checkpoint averaging (last 4 snapshots) tried: no gain, final weights reported",
               "bf16 autocast, torch.compile, single GPU, exact resume"
             ],
             "size": 38

@@ -1,5 +1,5 @@
 {
-  "ckpt": "/private/tmp/claude-501/-Users-mohammedalibhai-Documents/abf4f0cf-0b7e-406a-b8f4-8de87f1ea365/scratchpad/ckpt/final.pt",
+  "ckpt": "/private/tmp/claude-501/-Users-mohammedalibhai-Documents/abf4f0cf-0b7e-406a-b8f4-8de87f1ea365/scratchpad/final/main_vres_anneal_final.pt",
   "demo": {
     "prompts": [
       "The capital of France is",
@@ -14,15 +14,15 @@
   "samples": [
     {
       "prompt": "The capital of France is",
-      "completion": " Saint-Domingo, which is said to have been the last of the Seven Months of the 10th century. It is the oldest known capital city in the United Kingdom, and it is"
+      "completion": " Saint-Denis, which is located in the south of the country. The French capital is Saint-Louis.\nThe capital is located in the south of the country. It is at the junction"
     },
     {
       "prompt": "Photosynthesis is the process by which",
-      "completion": " the DNA strands of cells break down proteins in the order that they form. It is believed that proteins are the basis for the structure of the cells. The following diagram shows a typical cell.\nIn animal"
+      "completion": " plants use the light energy from the sun to make food. Plants can manufacture their own food using photosynthesis. In fact, the plant\u2019s cells capture the sun\u2019s light energy to produce food.\nIn the"
     },
     {
       "prompt": "To boil an egg, you",
-      "completion": " must first boil it. But when you boil your egg, you also have to boil it. If you can boil it right, it\u2019s much more difficult to boil the egg in the first place,"
+      "completion": " must expose it to steam for about eight hours. A steam boiler is the simplest design of any such device. Here, steam is used to boil eggs in a vessel. The boiler consists of a pump"
     }
   ]
 }
