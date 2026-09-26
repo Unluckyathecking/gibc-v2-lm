@@ -2,7 +2,7 @@
 
 Submission for the Global Innovation Build Challenge V2, Track 01 (TECH, foundational LLM development).
 
-We train a 14-layer decoder-only transformer with 49,822,228 trainable parameters from random initialisation on 20B tokens of openly licensed English web, maths, PDF and Wikipedia text, using our own 32k BPE tokenizer. The recipe is the modded-nanogpt family of speedrun techniques (Muon, QK-norm, ReLU², U-net skips, logit softcap) plus a ResFormer value residual, a warmup-stable-decay schedule, and a quality-data anneal during the decay phase. Every design choice that made it into the main runs was tested first in an 12-arm, 1B-token ablation sweep, reported in full below. Training data is decontaminated against WikiText-103 validation and test at the document level before tokenization. A main run takes about 8 hours on one H100.
+We train a 14-layer decoder-only transformer with 49,822,228 trainable parameters from random initialisation on 20B tokens of openly licensed English web, maths, PDF and Wikipedia text, using our own 32k BPE tokenizer. The recipe is the modded-nanogpt family of speedrun techniques (Muon, QK-norm, ReLU², U-net skips, logit softcap) plus a ResFormer value residual, a warmup-stable-decay schedule, and a quality-data anneal during the decay phase. Every design choice that made it into the main runs was tested first in a 12-arm, 1B-token ablation sweep, reported in full below. Training data is decontaminated against WikiText-103 validation and test at the document level before tokenization. A main run takes about 8 hours on one H100.
 
 Everything in this repository was written by AI coding agents under human direction. See [AI use disclosure](#ai-use-disclosure).
 
@@ -208,7 +208,7 @@ Prerequisites: Python 3.11+, [uv](https://docs.astral.sh/uv/), a Modal account, 
 uv sync                                      # torch 2.11, lm_eval 0.4.13, modal 1.4.3, ... (see pyproject.toml / uv.lock)
 uv run modal setup                           # authenticate Modal
 uv run modal secret create huggingface HF_TOKEN=<your token>
-uv run pytest -q                             # 104 unit tests, CPU only, ~5 s
+uv run pytest -q                             # 107 unit tests, CPU only, ~5 s
 uv run python scripts/count_params.py        # parameter counts for every config
 ```
 
@@ -310,7 +310,7 @@ The model itself is trained from scratch. No AI model's weights, outputs or gene
 
 ## Built with
 
-PyTorch 2.11 (including `torch.optim.Muon`), Hugging Face `tokenizers`, `transformers` and `huggingface_hub`, lm-evaluation-harness 0.4.13, PyArrow, NumPy, Matplotlib, uv, and Modal (NVIDIA H100 80GB for training, NVIDIA L4 for evaluation, CPU containers for data). Code was written with Claude Code. The training recipe and the token-shard format follow modded-nanogpt (see [Citations](#citations)).
+PyTorch 2.11 (including `torch.optim.Muon`), Hugging Face `tokenizers`, `transformers` and `huggingface_hub`, lm-evaluation-harness 0.4.13, PyArrow, NumPy, Matplotlib, uv, and Modal (NVIDIA H100 80GB for training, NVIDIA L4 for evaluation, CPU containers for data). The demo video was rendered with ffmpeg and Kokoro-82M text-to-speech. Code was written with Claude Code. The training recipe and the token-shard format follow modded-nanogpt (see [Citations](#citations)).
 
 ## Limitations
 
