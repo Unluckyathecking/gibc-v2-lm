@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "torch==2.11.0",        # built-in torch.optim.Muon (>=2.9)
     "tokenizers>=0.22",     # BPE training and fast batch encoding
-    "transformers>=4.50",   # PreTrainedModel wrapper so lm-eval's HFLM can drive our model
+    "transformers>=5.17",   # PreTrainedModel wrapper so lm-eval's HFLM can drive our model
     "lm_eval[hf]==0.4.13",  # benchmark harness named in the competition rules
     "pyarrow>=17",          # reading HF parquet shards
     "huggingface_hub>=0.30",
