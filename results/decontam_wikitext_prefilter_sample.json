@@ -1,0 +1,24 @@
+{
+ "ngram": 13,
+ "n_test_ngrams": 206369,
+ "n_matched_ngrams": 10227,
+ "frac_test_ngrams_matched": 0.04955686173795483,
+ "n_docs_scanned": 182375,
+ "n_docs_matching": 6,
+ "n_words_scanned": 176057033,
+ "n_tokens_scanned": 250010509,
+ "shards": [
+  "/data/shards/tok32k/dclm/train_0000_00.bin",
+  "/data/shards/tok32k/finemath/train_0000_00.bin",
+  "/data/shards/tok32k/finepdfs/train_0000_00.bin",
+  "/data/shards/tok32k/fwedu/train_0000_00.bin",
+  "/data/shards/tok32k/fwedu_hq/train_0079_00.bin"
+ ],
+ "examples": [
+  "0 50 mi southwest of the main mound at san lorenzo however its",
+  "0 56 mi to the north of monument 1 la venta monument 1",
+  "0 62 mi to the north of the modern village of tres zapotes",
+  "0 8 kilometres 0 50 mi southwest of the main mound at san",
+  "0 9 kilometres 0 56 mi to the north of monument 1 la"
+ ]
+}

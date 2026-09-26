@@ -1,0 +1,74 @@
+{
+ "ngram": 13,
+ "benchmarks": {
+  "hellaswag": {
+   "n_items": 10042,
+   "n_items_with_ngrams": 10042,
+   "n_ngrams": 1288878,
+   "n_matched_ngrams": 59,
+   "frac_ngrams_matched": 4.577624879934331e-05,
+   "n_items_hit": 3,
+   "frac_items_hit": 0.00029874526986656047,
+   "examples": [
+    "a book or popular poem think of what you want the play to",
+    "a name make sure that you do not plagiarize the name of a",
+    "about thinking of a lot of characters and focus on creating good quality",
+    "and the phone must be connected to the same network you can check",
+    "be connected to the same network you can check your ps4 s network"
+   ]
+  },
+  "arc_easy": {
+   "n_items": 2376,
+   "n_items_with_ngrams": 2021,
+   "n_ngrams": 46493,
+   "n_matched_ngrams": 4,
+   "frac_ngrams_matched": 8.603445679994838e-05,
+   "n_items_hit": 1,
+   "frac_items_hit": 0.00042087542087542086,
+   "examples": [
+    "in the northern hemisphere and to the left in the southern hemisphere the",
+    "right in the northern hemisphere and to the left in the southern hemisphere",
+    "the right in the northern hemisphere and to the left in the southern",
+    "to the right in the northern hemisphere and to the left in the"
+   ]
+  },
+  "piqa": {
+   "n_items": 1838,
+   "n_items_with_ngrams": 1458,
+   "n_ngrams": 40376,
+   "n_matched_ngrams": 57,
+   "frac_ngrams_matched": 0.0014117297404398653,
+   "n_items_hit": 2,
+   "frac_items_hit": 0.001088139281828074,
+   "examples": [
+    "2 comes from the fact that a parallelogram can be divided into 2",
+    "2 the division by 2 comes from the fact that a parallelogram can",
+    "2 triangles for example in the diagram to the left the area of",
+    "a parallelogram can be divided into 2 triangles for example in the diagram",
+    "a triangle multiply the base by the height and then divide by 2"
+   ]
+  },
+  "winogrande": {
+   "n_items": 1267,
+   "n_items_with_ngrams": 1267,
+   "n_ngrams": 13692,
+   "n_matched_ngrams": 0,
+   "frac_ngrams_matched": 0.0,
+   "n_items_hit": 0,
+   "frac_items_hit": 0.0,
+   "examples": []
+  }
+ },
+ "n_docs_scanned": 219831,
+ "n_docs_matching": 8,
+ "n_words_scanned": 209675192,
+ "n_tokens_scanned": 300021911,
+ "shards": [
+  "/data/shards/tok32k/dclm/train_0000_00.bin",
+  "/data/shards/tok32k/finemath/train_0000_00.bin",
+  "/data/shards/tok32k/finepdfs/train_0000_00.bin",
+  "/data/shards/tok32k/fwedu/train_0000_00.bin",
+  "/data/shards/tok32k/fwedu_hq/train_0079_00.bin",
+  "/data/shards/tok32k/wiki/train_0000_00.bin"
+ ]
+}
