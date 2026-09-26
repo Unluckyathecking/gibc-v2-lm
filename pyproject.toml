@@ -1,0 +1,29 @@
+[project]
+name = "gibc"
+version = "0.1.0"
+description = "A <=50M-parameter language model trained from scratch for GIBC V2 Track 01"
+requires-python = ">=3.11"
+dependencies = [
+    "torch==2.11.0",        # built-in torch.optim.Muon (>=2.9)
+    "tokenizers>=0.22",     # BPE training and fast batch encoding
+    "transformers>=4.50",   # PreTrainedModel wrapper so lm-eval's HFLM can drive our model
+    "lm_eval[hf]==0.4.13",  # benchmark harness named in the competition rules
+    "pyarrow>=17",          # reading HF parquet shards
+    "huggingface_hub>=0.30",
+    "numpy>=2",
+    "modal==1.4.3",
+    "matplotlib>=3.9",      # training-curve screenshots
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["gibc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
