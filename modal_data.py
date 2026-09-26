@@ -4,10 +4,12 @@
     modal run --detach modal_data.py::tokenize_all --tok tok32k   (then --tok tok16k)
     modal run modal_data.py::check --tok tok32k
     modal run --detach modal_data.py::decontam
+    modal run --detach modal_data.py::decontam_bench
 
 tokenize_all is resumable: each per-file job writes {source}/meta/{split}_{idx:04d}.json
-last and is skipped when that exists; rounds are planned deterministically from those
-results, so a rerun rebuilds the same plan. Progress: {shard_dir(tok)}/status.json.
+last and is skipped when that exists with the current FILTER_TAG; rounds are planned
+deterministically from those results, so a rerun rebuilds the same plan. New sources in
+TOKEN_TARGETS are picked up automatically. Progress: {shard_dir(tok)}/status.json.
 """
 import json
 import os
@@ -24,10 +26,10 @@ from gibc.configs import (DATA_DIR, MIX_MAIN, SOURCES, TOKEN_TARGETS, TOKENIZERS
                           VAL_TOKENS_PER_SOURCE, WIKITEXT, manifest_path, shard_dir,
                           tokenizer_path)
 from gibc.data import load_manifest, read_shard, write_manifest
-from gibc.decontam import decontam_report
+from gibc.decontam import BENCH_FILES, decontam_bench_report, decontam_report
 from gibc.modal_common import VOLUMES, data_vol, hf_secret, image
-from gibc.tokenize import (iter_parquet_texts, list_source_files, plan_train_jobs, split_files,
-                           tokenize_file_to_shards, train_tokenizer)
+from gibc.tokenize import (DROP_REASONS, FILTER_TAG, iter_parquet_texts, list_source_files,
+                           plan_train_jobs, split_files, tokenize_file_to_shards, train_tokenizer)
 
 app = modal.App("gibc-data")
 FN = dict(image=image, volumes=VOLUMES, secrets=[hf_secret])
@@ -88,7 +90,9 @@ def tokenize_job(args: dict) -> dict:
     meta_path = _meta_path(args["tok"], args["source"], args["split"], args["file_idx"])
     if os.path.exists(meta_path):
         with open(meta_path) as f:
-            return json.load(f)
+            meta = json.load(f)
+        if meta.get("filter") == FILTER_TAG:  # else it predates the current filter: redo
+            return meta
     tok = Tokenizer.from_file(tokenizer_path(args["tok"]))
     out = tokenize_file_to_shards(args["source"], args["file_idx"], args["file"], tok,
                                   f"{shard_dir(args['tok'])}/{args['source']}", args["split"],
@@ -125,10 +129,17 @@ def _manifest(results: dict) -> dict:
             for src, splits in results.items()}
 
 
+def _dropped(entries: list) -> dict:
+    """Summed n_docs_dropped_{reason} of job metas or manifest shard entries."""
+    return {f"n_docs_dropped_{r}": sum(e.get(f"n_docs_dropped_{r}", 0) for e in entries)
+            for r in DROP_REASONS}
+
+
 def _progress(targets: dict, results: dict) -> dict:
     return {s: {"target": t, "files": len(results[s]["train"]),
                 "train_tokens": sum(r["n_tokens"] for r in results[s]["train"]),
-                "val_tokens": sum(r["n_tokens"] for r in results[s]["val"])}
+                "val_tokens": sum(r["n_tokens"] for r in results[s]["val"]),
+                "train": _dropped(results[s]["train"]), "val": _dropped(results[s]["val"])}
             for s, t in targets.items()}
 
 
@@ -179,6 +190,22 @@ def decontam(tok: str = "tok32k"):
     print(json.dumps({k: v for k, v in report.items() if k != "shards"}, indent=1))
 
 
+@app.function(**FN, cpu=8, memory=32768, timeout=3 * HOUR)
+def decontam_bench(tok: str = "tok32k"):
+    """Benchmark eval-item 13-gram overlap (report only) with the first train shard of each
+    source; writes {DATA_DIR}/decontam_bench.json."""
+    rows = {}
+    for bench, (repo, file) in BENCH_FILES.items():
+        rows[bench] = pq.read_table(hf_hub_download(repo, file, repo_type="dataset")).to_pylist()
+    manifest = load_manifest(tok)
+    shards = [manifest[s]["train"][0]["path"] for s in sorted(manifest) if manifest[s]["train"]]
+    report = decontam_bench_report(rows, shards, Tokenizer.from_file(tokenizer_path(tok)),
+                                   DECONTAM_TOKENS_PER_SOURCE)
+    _write_json(f"{DATA_DIR}/decontam_bench.json", report)
+    data_vol.commit()
+    print(json.dumps(report["benchmarks"], indent=1))
+
+
 @app.function(**FN, cpu=2, memory=8192, timeout=HOUR)
 def check(tok: str = "tok32k", window: int = 64, seed: int = 0):
     """Manifest totals per source/split vs targets, and 3 decoded random windows per source."""
@@ -192,7 +219,8 @@ def check(tok: str = "tok32k", window: int = 64, seed: int = 0):
             target = targets.get(src, 0) if split == "train" else VAL_TOKENS_PER_SOURCE
             print(f"{src:9s} {split:5s} shards={len(entries):4d} tokens={n_tok:>14,} "
                   f"target={target:>14,} ({n_tok / max(1, target):6.1%}) "
-                  f"docs={sum(e['n_docs'] for e in entries):>11,} bytes/token={n_bytes / max(1, n_tok):.3f}")
+                  f"docs={sum(e['n_docs'] for e in entries):>11,} bytes/token={n_bytes / max(1, n_tok):.3f} "
+                  + " ".join(f"{k[8:]}={v:,}" for k, v in _dropped(entries).items()))
     rng = random.Random(seed)
     for src in sorted(manifest):
         for _ in range(3):

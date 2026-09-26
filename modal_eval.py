@@ -55,11 +55,12 @@ def main(run: str, variants: str = "final,avg", limit: int = 0):
 
 
 @app.local_entrypoint()
-def eval_sweep(variants: str = "final", limit: int = SWEEP_LIMIT):
-    """Fan out over SWEEP_RUNS in parallel (one container each); final weights by default."""
-    args = [(run, variants, limit or None) for run in SWEEP_RUNS]
+def eval_sweep(variants: str = "final", limit: int = SWEEP_LIMIT, runs: str = ""):
+    """Fan out over SWEEP_RUNS (or a comma-separated subset) in parallel; final weights by default."""
+    names = runs.split(",") if runs else SWEEP_RUNS
+    args = [(run, variants, limit or None) for run in names]
     recs = []
-    for run, out in zip(SWEEP_RUNS, eval_run.starmap(args, return_exceptions=True)):
+    for run, out in zip(names, eval_run.starmap(args, return_exceptions=True)):
         if isinstance(out, Exception):
             print(f"{run}: eval failed: {out!r}")
         else:

@@ -7,9 +7,11 @@ from tokenizers import Tokenizer
 
 from gibc.configs import BOS_ID
 from gibc.data import read_shard
-from gibc.decontam import bench_ngrams, scan, shard_docs
-from gibc.tokenize import (N_HQ_FILES, plan_train_jobs, select_texts, split_files,
-                           tokenize_parquet, train_tokenizer)
+from gibc.decontam import (NgramFilter, bench_item_texts, bench_ngrams, bench_report,
+                           item_ngrams, ngrams, normalise_title, scan, shard_docs,
+                           wikitext_titles, words)
+from gibc.tokenize import (N_HQ_FILES, DocFilter, plan_train_jobs, select_docs, select_texts,
+                           split_files, tokenize_parquet, train_tokenizer)
 
 CORPUS = ["The quick brown fox jumps over the lazy dog. " * 3,
           "Numbers 12345 and 3.14159; code: x = f(y) + 2\n\tindent",
@@ -106,3 +108,95 @@ def test_decontam_scan():
     docs = ["unrelated text", "The ALPHA beta, gamma delta epsilon zeta eta theta iota kappa lambda mu!"]
     matched, n_match, _ = scan(docs, targets)
     assert n_match == 1 and len(matched) == 1
+
+
+# --- WikiText-103 decontamination -------------------------------------------
+WIKITEXT_LINES = [
+    " = Meridian , Mississippi = \n", " \n",
+    " Meridian is the sixth @-@ largest city in the state , with a population of 41 @,@ 148 "
+    "at the 2010 census and an area of 45 @.@ 5 square miles . \n",
+    " = = History = = \n",
+    " The city was founded in 1860 at the junction of two railroads and grew quickly after the war . \n",
+    " = 2011 – 12 Michigan Wolverines men 's basketball team = \n",
+    " = Kiss You ( One Direction song ) = \n",
+]
+SECRET = ("the city was founded in 1860 at the junction of two railroads and grew quickly "
+          "after the war")
+
+
+def test_wikitext_titles_and_normalisation():
+    titles = wikitext_titles(WIKITEXT_LINES)
+    assert titles == ["Meridian , Mississippi", "2011 – 12 Michigan Wolverines men 's basketball team",
+                      "Kiss You ( One Direction song )"]
+    keys = {normalise_title(t) for t in titles}
+    for wiki_title in ("Meridian, Mississippi", "MERIDIAN, mississippi",
+                       "2011–12 Michigan Wolverines men's basketball team",
+                       "Kiss You (One Direction song)"):
+        assert normalise_title(wiki_title) in keys
+    assert normalise_title("Meridian, Idaho") not in keys
+    assert normalise_title("Sixth @-@ largest  city") == "sixth-largest city"
+    assert normalise_title("41 @,@ 148 and 45 @.@ 5") == "41,148 and 45.5"
+
+
+def test_ngram_filter_matches_exact_scan():
+    filt = NgramFilter(WIKITEXT_LINES)
+    assert filt.targets == bench_ngrams(WIKITEXT_LINES)
+    secret = SECRET.split()
+    docs = ["unrelated text " * 20,
+            "Intro. The City was founded in 1860, at the junction of two railroads AND grew "
+            "quickly after the war!",                                  # 13-gram, punctuation differs
+            " ".join(secret[:12]),                                     # 12 words only
+            " ".join(secret[:12]) + " zebra quickly after the war",    # unknown word breaks it
+            "",
+            "the war " + " ".join(secret[:6]) + " banana " + " ".join(secret[6:])]
+    batch = docs[:3] + [" ".join(secret[:7])] + [" ".join(secret[7:])] + docs[3:]  # split doc pair
+    want = [bool(ngrams(words(d)) & filt.targets) for d in batch]
+    assert filt.flags(batch) == want == [False, True, False, False, False, False, False, False]
+    assert filt.flags([]) == [] and filt.flags(["short"]) == [False]
+
+
+def _wiki_parquet(tmp_path, rows):
+    path = str(tmp_path / "wiki.parquet")
+    pq.write_table(pa.table({"id": [str(i) for i in range(len(rows))],
+                             "title": [r[0] for r in rows], "text": [r[1] for r in rows]}), path)
+    return path
+
+
+def test_wiki_docs_dropped_by_title_and_ngram(tok, tmp_path):
+    rows = [("Meridian, Mississippi", "Meridian is a city in Lauderdale County."),  # title
+            ("Railways of Meridian", "History: " + SECRET + "."),                  # 13-gram
+            ("Fox", "The quick brown fox jumps over the lazy dog."),              # kept
+            ("Empty", ""),                                                        # skipped
+            ("Kiss You (One Direction song)", "A song.")]                         # title, last
+    path = _wiki_parquet(tmp_path, rows)
+    texts, titles = select_docs(pq.read_table(path), "wiki")
+    assert titles == [r[0] for r in rows if r[1]] and len(texts) == 4
+    filt = DocFilter(frozenset(normalise_title(t) for t in wikitext_titles(WIKITEXT_LINES)),
+                     NgramFilter(WIKITEXT_LINES))
+    assert filt.reasons(texts, titles) == ["title", "ngram", None, "title"]
+    out = tokenize_parquet(path, "wiki", tok, str(tmp_path / "out"), "train_0000", doc_filter=filt)
+    assert out["n_docs"] == 1 and out["n_docs_dropped_title"] == 2
+    assert out["n_docs_dropped_ngram"] == 1 and out["exhausted"]
+    (shard,) = out["shards"]  # the trailing drop is folded into the last shard
+    assert shard["n_docs_dropped_title"] == 2 and shard["n_docs_dropped_ngram"] == 1
+    toks = np.asarray(read_shard(shard["path"]))
+    assert tok.decode_batch([d.tolist() for d in shard_docs(toks)]) == [rows[2][1]]
+    plain = tokenize_parquet(path, "wiki", tok, str(tmp_path / "plain"), "t")
+    assert plain["n_docs"] == 4 and plain["n_docs_dropped_title"] == 0
+
+
+def test_bench_items_and_report():
+    rows = {"hellaswag": {"ctx": "A man is", "endings": ["running.", "sitting."]},
+            "arc_easy": {"question": "Which is a gas?", "choices": {"text": ["air", "rock"]}},
+            "piqa": {"goal": "Open a jar", "sol1": "twist the lid", "sol2": "hit it"},
+            "winogrande": {"sentence": "Tom asked Bob because _ knew.",
+                           "option1": "Tom", "option2": "Bob"}}
+    assert bench_item_texts("hellaswag", rows["hellaswag"]) == ["A man is running.", "A man is sitting."]
+    assert bench_item_texts("arc_easy", rows["arc_easy"]) == ["Which is a gas? air", "Which is a gas? rock"]
+    assert bench_item_texts("piqa", rows["piqa"])[1] == "Open a jar hit it"
+    assert bench_item_texts("winogrande", rows["winogrande"])[0] == "Tom asked Bob because Tom knew."
+    a = item_ngrams([" ".join(f"w{i}" for i in range(14))])  # 2 13-grams
+    items = {"toy": [a, item_ngrams(["too short"]), item_ngrams([" ".join(f"w{i}" for i in range(1, 14))])]}
+    rep = bench_report(items, {" ".join(f"w{i}" for i in range(1, 14))})["toy"]
+    assert rep["n_items"] == 3 and rep["n_items_with_ngrams"] == 2 and rep["n_ngrams"] == 2
+    assert rep["n_matched_ngrams"] == 1 and rep["n_items_hit"] == 2
