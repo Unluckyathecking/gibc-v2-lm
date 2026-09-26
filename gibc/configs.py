@@ -85,6 +85,8 @@ class ModelConfig:
     softcap: float = 15.0
     rope_base: float = 10_000.0
     tokenizer: str = "tok32k"
+    xsa: bool = False             # Exclusive Self Attention: remove each token's own value from its output
+    value_residual: bool = False  # blend each layer's V with layer 1's V via a learned scalar per layer
 
     @property
     def n_eff(self) -> int:
@@ -106,6 +108,9 @@ MODEL_CONFIGS = {
                         n_head=8, n_kv_head=4, mlp_hidden=1536,
                         tokenizer="tok16k"),                             # 41,433,607 once / 49,822,215 twice
 }
+# Variants of A used by sweep arms; identical param count except +n_eff scalars for value_residual.
+MODEL_CONFIGS["A_xsa"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "xsa": True})
+MODEL_CONFIGS["A_vres"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "value_residual": True})
 PARAM_CAP = 50_000_000
 
 
@@ -119,7 +124,8 @@ class TrainConfig:
     total_tokens: int
     mix_main: dict = field(default_factory=lambda: dict(MIX_MAIN))
     mix_anneal: dict | None = None           # if set, loader switches to it when decay starts
-    opt: str = "muon"                        # "muon" (Muon + AdamW) or "adamw" (AdamW only)
+    opt: str = "muon"                        # "muon" (Muon + AdamW), "normuon" (NorMuon + AdamW) or "adamw"
+    cautious_wd: bool = False                # decay only coords where update and weight agree in sign
     muon_lr: float = 0.02                    # torch.optim.Muon, adjust_lr_fn="original"
     muon_wd: float = 0.01
     adam_lr: float = 3e-3                    # embedding, norms, scalars (and matrices if opt="adamw")
@@ -149,6 +155,10 @@ RUNS = {
     "sweep_alt2": TrainConfig("alt2", SWEEP_TOKENS),
     "sweep_alt1": TrainConfig("alt1", SWEEP_TOKENS),
     "sweep_A_anneal": TrainConfig("A", SWEEP_TOKENS, mix_anneal=dict(MIX_ANNEAL)),
+    # Parameter-free additions, each tested alone against sweep_A.
+    "sweep_A_xsa": TrainConfig("A_xsa", SWEEP_TOKENS),
+    "sweep_A_vres": TrainConfig("A_vres", SWEEP_TOKENS),
+    "sweep_A_normuon": TrainConfig("A", SWEEP_TOKENS, opt="normuon", cautious_wd=True),
     # Main runs are added after the sweep picks a winner and runner-up.
 }
 SWEEP_RUNS = [name for name in RUNS if name.startswith("sweep_")]
