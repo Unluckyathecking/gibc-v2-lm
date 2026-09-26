@@ -5,9 +5,10 @@ from dataclasses import asdict
 import pytest
 import torch
 
+from gibc import evaluate
 from gibc.configs import BOS_ID
-from gibc.evaluate import (average_checkpoints, score_ids, variant_weights, wikitext103_ppl,
-                           window_spans)
+from gibc.evaluate import (average_checkpoints, eval_weights, score_ids, variant_weights,
+                           wikitext103_ppl, window_spans)
 from gibc.model import GPT
 from lm_eval.tasks.wikitext.preprocess_wikitext import wikitext_detokenizer
 from tests.test_hf_wrap import TINY, make_trained
@@ -105,3 +106,24 @@ def test_wikitext_counts(tmp_path):
     assert res["word_ppl"] == pytest.approx(math.exp(res["total_nats"] / res["n_words"]))
     assert res["bits_per_byte"] == pytest.approx(
         res["total_nats"] / (math.log(2) * res["n_bytes"]))
+
+
+def test_lmeval_style_windows_are_disjoint():
+    ctx = 8
+    spans = window_spans(50, ctx, ctx - 1)
+    assert all(first - begin == 1 for begin, _, first in spans[1:])  # one token of context
+    assert all(end == nxt_first for (_, end, _), (_, _, nxt_first) in zip(spans, spans[1:]))
+
+
+def test_eval_weights_reports_both_wikitext_windowings(tmp_path, monkeypatch):
+    _, hf, tok = make_trained(tmp_path)
+    pages = [" = Cat = \n \n " + "the cat sat on the mat . " * 20 + "\n"]
+    monkeypatch.setattr(evaluate, "load_hf", lambda *a: (hf, tok))
+    monkeypatch.setattr(evaluate, "run_lm_eval", lambda *a, **k: {})
+    monkeypatch.setattr(evaluate, "load_wikitext_pages", lambda: pages)
+    monkeypatch.setattr(evaluate, "WT_STRIDE", TINY.ctx // 2)
+    res = eval_weights({}, TINY, "cpu")
+    slide, lmeval = res["wikitext103_stride512"], res["wikitext103_lmeval_style"]
+    assert (slide["stride"], lmeval["stride"]) == (TINY.ctx // 2, TINY.ctx - 1)
+    assert slide["n_tokens"] == lmeval["n_tokens"] > 2 * TINY.ctx
+    assert slide["total_nats"] != lmeval["total_nats"]

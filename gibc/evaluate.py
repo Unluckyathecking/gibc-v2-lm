@@ -1,7 +1,9 @@
 """Benchmarks (lm-eval zero-shot) and WikiText-103 test perplexity for trained runs.
 
 Headline numbers are tokenizer-independent: WikiText word perplexity and bits per byte,
-counted exactly as lm-eval's `wikitext` task counts them (words and bytes of the raw page).
+normalised as lm-eval's `wikitext` task does (words and bytes of the raw page). Two
+windowings are reported: sliding (stride 512, more context per token, lower perplexity)
+and lm-eval style (disjoint windows, the one to compare with published lm-eval numbers).
 """
 import glob
 import json
@@ -19,6 +21,7 @@ from gibc.hf_wrap import load_hf, load_weights
 REPORT_METRICS = {"hellaswag": ["acc_norm"], "arc_easy": ["acc", "acc_norm"],
                   "piqa": ["acc", "acc_norm"], "winogrande": ["acc"]}
 N_AVG = 4  # snapshots in the "avg" variant: the last N decay-phase snapshots
+WT_STRIDE = 512  # sliding-window stride for the wikitext103_stride512 numbers
 
 
 def _autocast(device: torch.device):
@@ -106,8 +109,15 @@ def score_ids(model, ids: list[int], ctx: int, stride: int) -> float:
 
 def wikitext103_ppl(model, tokenizer, ctx: int = 1024, stride: int = 512,
                     pages: list[str] | None = None) -> dict:
-    """Sliding-window perplexity over each test article, BOS first, lm-eval's counting:
-    the detokenized page is scored; words and bytes are counted on the raw page."""
+    """Perplexity over each test article, BOS first; the detokenized page is scored and
+    words and bytes are counted on the raw page, as lm-eval's `wikitext` task does.
+
+    stride < ctx - 1 is a sliding window: every target after the first window sees at least
+    ctx - stride tokens of context, so perplexity is lower than lm-eval's. stride = ctx - 1
+    gives disjoint windows (each window's first target sees one token of context), like
+    lm-eval's rolling loglikelihood; lm-eval also right-aligns a page's last partial window,
+    so that setting is comparable to, not bit-identical with, lm-eval.
+    """
     from lm_eval.tasks.wikitext.preprocess_wikitext import wikitext_detokenizer
     pages = load_wikitext_pages() if pages is None else pages
     nats = n_tokens = n_words = n_bytes = 0
@@ -143,13 +153,16 @@ def eval_weights(state: dict, mc, device: str, limit: int | None = None,
     """lm-eval benchmarks + WikiText-103 for one set of GPT weights."""
     model, tok = load_hf(state, mc, tokenizer_path(mc.tokenizer), device)
     t0 = time.time()
+    pages = load_wikitext_pages()
     res = {"lm_eval": run_lm_eval(model, tok, batch_size=batch_size, limit=limit),
-           "wikitext103": wikitext103_ppl(model, tok, ctx=mc.ctx, stride=mc.ctx // 2)}
+           "wikitext103_stride512": wikitext103_ppl(model, tok, mc.ctx, WT_STRIDE, pages),
+           "wikitext103_lmeval_style": wikitext103_ppl(model, tok, mc.ctx, mc.ctx - 1, pages)}
     return {**res, "eval_s": round(time.time() - t0, 1)}
 
 
 def variant_weights(rd: str, variant: str, n_avg: int = N_AVG) -> list[str]:
-    """Files behind a variant: "final" -> [final.pt]; "avg" -> the last n_avg snapshots."""
+    """Files behind a variant: "final" -> [final.pt]; "avg" -> the last n_avg snapshots
+    (training snapshots the last step too, so these end with the final weights)."""
     if variant == "final":
         return glob.glob(os.path.join(rd, "final.pt"))
     if variant == "avg":

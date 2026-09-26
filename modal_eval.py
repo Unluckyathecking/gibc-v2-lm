@@ -2,7 +2,7 @@
 
   modal run modal_eval.py::main --run sweep_A               # full eval, final + avg
   modal run modal_eval.py::main --run sweep_A --variants final --limit 1000
-  modal run modal_eval.py::eval_sweep                       # all SWEEP_RUNS in parallel, fast
+  modal run modal_eval.py::eval_sweep                       # all SWEEP_RUNS, parallel, fast, final
   modal run modal_eval.py::eval_sweep --limit 0             # all SWEEP_RUNS, full
 
 Results land in {run_dir}/evals/{variant}[_limitN].json on the gibc-runs volume.
@@ -31,17 +31,19 @@ def eval_run(run: str, variants: str = "final,avg", limit: int | None = None) ->
 
 
 def format_table(recs: list[dict]) -> str:
-    """One line per (run, variant): benchmark accuracies and WikiText headline numbers."""
+    """One line per (run, variant): benchmark accuracies, then WikiText word perplexity and
+    bits per byte, sliding stride 512 (wt_*) and lm-eval-style disjoint windows (lmwt_*)."""
     cols = [("hellaswag/acc_norm", "hs_n"), ("arc_easy/acc", "arcE"),
             ("arc_easy/acc_norm", "arcE_n"), ("piqa/acc", "piqa"), ("piqa/acc_norm", "piqa_n"),
             ("winogrande/acc", "wino")]
     head = f"{'run':<18}{'variant':<8}" + "".join(f"{c:>8}" for _, c in cols)
-    lines = [head + f"{'wt_wppl':>10}{'wt_bpb':>8}{'limit':>7}"]
+    lines = [head + f"{'wt_wppl':>10}{'wt_bpb':>8}{'lmwt_wppl':>10}{'lmwt_bpb':>9}{'limit':>7}"]
     for r in recs:
-        lm, wt = r["lm_eval"], r["wikitext103"]
+        lm, wt, lw = r["lm_eval"], r["wikitext103_stride512"], r["wikitext103_lmeval_style"]
         row = f"{r['run']:<18}{r['variant']:<8}" + "".join(f"{lm.get(k, float('nan')):>8.4f}"
                                                             for k, _ in cols)
         lines.append(row + f"{wt['word_ppl']:>10.5g}{wt['bits_per_byte']:>8.4f}"
+                           f"{lw['word_ppl']:>10.5g}{lw['bits_per_byte']:>9.4f}"
                            f"{str(r['limit']):>7}")
     return "\n".join(lines)
 
@@ -53,8 +55,8 @@ def main(run: str, variants: str = "final,avg", limit: int = 0):
 
 
 @app.local_entrypoint()
-def eval_sweep(variants: str = "final,avg", limit: int = SWEEP_LIMIT):
-    """Fan out over SWEEP_RUNS in parallel (one container each)."""
+def eval_sweep(variants: str = "final", limit: int = SWEEP_LIMIT):
+    """Fan out over SWEEP_RUNS in parallel (one container each); final weights by default."""
     args = [(run, variants, limit or None) for run in SWEEP_RUNS]
     recs = []
     for run, out in zip(SWEEP_RUNS, eval_run.starmap(args, return_exceptions=True)):

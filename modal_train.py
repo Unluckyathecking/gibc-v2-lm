@@ -60,13 +60,35 @@ def group_runs(group: str) -> list[str]:
 
 
 def _poll(call) -> tuple[str, object]:
-    """("running", None) | ("done", result) | ("failed", error repr)."""
+    """("running", None) | ("done", result) | ("failed", exception)."""
     try:
         return "done", call.get(timeout=0)
     except TimeoutError:  # modal raises the builtin TimeoutError while still running
         return "running", None
     except Exception as e:
-        return "failed", repr(e)
+        return "failed", e
+
+
+def _deterministic(err: Exception) -> bool:
+    """Failures a retry would only repeat: NaN loss, bad config or manifest, and data
+    exhaustion (MixLoader and the train preflight both say "exhausted"). Other
+    RuntimeErrors (CUDA faults, preemption, infra) stay retryable."""
+    if isinstance(err, (FloatingPointError, KeyError, ValueError)):
+        return True
+    return isinstance(err, RuntimeError) and "exhausted" in str(err)
+
+
+def _on_failure(s: dict, call, err: Exception) -> bool:
+    """Record a failed poll on run state s; True if the run should be respawned."""
+    s["errors"].append(repr(err))
+    try:
+        call.cancel()  # the poll failing need not mean the container stopped: never run two
+    except Exception as e:
+        print(f"[driver] cancel failed: {e!r}")
+    if _deterministic(err) or s["attempts"] > MAX_RETRIES:
+        s["state"] = "failed"
+        return False
+    return True
 
 
 @app.function(image=image, volumes={RUNS_DIR: runs_vol}, timeout=DAY)
@@ -92,13 +114,9 @@ def driver(group: str) -> dict:
             state, out = _poll(calls[r])
             if state == "done":
                 s.update(state="done", result=out)
-            elif state == "failed":
-                s["errors"].append(out)
-                if s["attempts"] > MAX_RETRIES:
-                    s["state"] = "failed"
-                else:
-                    calls[r] = train_run.spawn(r)  # resumes from its latest checkpoint
-                    s["attempts"] += 1
+            elif state == "failed" and _on_failure(s, calls[r], out):
+                calls[r] = train_run.spawn(r)  # resumes from its latest checkpoint
+                s["attempts"] += 1
             if state != "running":
                 print(f"[driver] {r}: {s['state']} (attempt {s['attempts']})")
                 write()

@@ -132,7 +132,7 @@ class TrainConfig:
     ckpt_minutes: int = 30
     snap_every: int = 250                    # model-only snapshots during decay, for averaging
     val_every: int = 250
-    val_tokens: int = 10_485_760             # tokens scored per val pass
+    val_tokens: int | None = None            # None: every val shard (same text for all tokenizers)
     seed: int = 1337
 
     @property
@@ -144,7 +144,8 @@ SWEEP_TOKENS = 1_000_000_000
 RUNS = {
     "sweep_A": TrainConfig("A", SWEEP_TOKENS),
     "sweep_A_lr2": TrainConfig("A", SWEEP_TOKENS, muon_lr=0.04),
-    "sweep_A_adamw": TrainConfig("A", SWEEP_TOKENS, opt="adamw", adam_lr=2e-3),
+    # opt="adamw" applies muon_wd to the block matrices; 0.1 is the standard AdamW LM value.
+    "sweep_A_adamw": TrainConfig("A", SWEEP_TOKENS, opt="adamw", adam_lr=2e-3, muon_wd=0.1),
     "sweep_alt2": TrainConfig("alt2", SWEEP_TOKENS),
     "sweep_alt1": TrainConfig("alt1", SWEEP_TOKENS),
     "sweep_A_anneal": TrainConfig("A", SWEEP_TOKENS, mix_anneal=dict(MIX_ANNEAL)),

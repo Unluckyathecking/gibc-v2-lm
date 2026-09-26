@@ -6,7 +6,7 @@ Run layout under {runs_dir}/{run}/:
   status.json      state, progress and time/compute totals (all attempts)
   latest.json      {"step", "path"} of the newest full checkpoint
   ckpt/step_N.pt   full state (last KEEP_CKPTS kept)
-  snap/step_N.pt   model-only snapshots during LR decay, for checkpoint averaging
+  snap/step_N.pt   model-only snapshots during LR decay (and at the last step), for averaging
   final.pt         model-only weights after the last step
 Model-only files are {"model": state_dict, "model_cfg": asdict(ModelConfig)}.
 """
@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 import torch
 
 from gibc.configs import MODEL_CONFIGS, RUNS, RUNS_DIR, ModelConfig, TrainConfig
-from gibc.data import MixLoader, load_manifest, val_bpb
+from gibc.data import MixLoader, allocate_rows, load_manifest, val_bpb
 from gibc.model import GPT, count_params
 from gibc.optim import apply_lr, build_optimizers, decay_start, lr_mult
 
@@ -97,6 +97,45 @@ def run_val(raw, manifest, tc: TrainConfig, mc: ModelConfig, device) -> dict:
         res = val_bpb(raw, manifest, min(tc.micro_bsz, VAL_BSZ), mc.ctx, tc.val_tokens, device)
     raw.train()
     return {"val_bpb": res["bpb"], "val_loss": res["loss"]}
+
+
+# --- data supply preflight ---------------------------------------------------------
+def _rows_left(loader: MixLoader, manifest: dict, src: str) -> int:
+    """Rows `loader` can still draw from src. A row needs T+1 tokens and the cursor moves
+    by T, so a shard read from offset off yields (n_tokens - 1 - off) // T more rows."""
+    n_tokens = {e["path"]: e["n_tokens"] for e in manifest[src][loader.split]}
+    i, off = loader.cursors[src]
+    return sum(max(0, (n_tokens[p] - 1 - (off if j == i else 0)) // loader.T)
+               for j, p in enumerate(loader.shards[src]) if j >= i)
+
+
+def check_data_supply(loader: MixLoader, manifest: dict, tc: TrainConfig, total: int,
+                      step: int) -> None:
+    """Raise RuntimeError, before any compute, if steps step..total-1 would run a source dry.
+
+    Main-phase steps use tc.mix_main; with tc.mix_anneal, steps from decay_start on use it.
+    Rows per step per source come from the loader's own allocate_rows split.
+    """
+    ds = decay_start(total, tc.decay) if tc.mix_anneal else total
+    phases = [(tc.mix_main, max(0, ds - step))]
+    if tc.mix_anneal:
+        phases.append((tc.mix_anneal, total - max(step, ds)))
+    missing = sorted({s for mix, _ in phases for s, w in mix.items()
+                      if w > 0 and s not in loader.shards})
+    problems = [f"{s}: in the mix but has no {loader.split} shards" for s in missing]
+    need = {}
+    for mix, steps in phases:
+        for s, rows in allocate_rows(mix, loader.B).items():
+            if s not in missing:
+                need[s] = need.get(s, 0) + rows * tc.grad_accum * steps
+    for s, rows in sorted(need.items()):
+        have = _rows_left(loader, manifest, s)
+        if rows > have:
+            problems.append(f"{s}: needs {rows} rows ({rows * loader.T:,} tokens), "
+                            f"has {have} ({have * loader.T:,} tokens)")
+    if problems:
+        raise RuntimeError("data preflight: training data would be exhausted from step "
+                           f"{step}:\n  " + "\n  ".join(problems))
 
 
 # --- checkpoints -----------------------------------------------------------------
@@ -221,6 +260,7 @@ def _train(rd, tc, mc, manifest, max_steps, on_checkpoint, runlog, prog) -> dict
         _truncate_log(rd, prog["step"])
         if tc.mix_anneal and prog["step"] > ds:
             loader.set_mix(tc.mix_anneal)
+    check_data_supply(loader, manifest, tc, total, prog["step"])
     model = torch.compile(raw, dynamic=False) if device.type == "cuda" else raw
     return _loop(rd, raw, model, opts, loader, manifest, tc, mc, device,
                  min(total, max_steps or total), on_checkpoint, runlog, prog)
@@ -260,7 +300,7 @@ def _loop(rd, raw, model, opts, loader, manifest, tc, mc, device, stop, on_check
             rec.update(run_val(raw, manifest, tc, mc, device))
         runlog.log(rec)
 
-        if step + 1 > ds and (step + 1) % tc.snap_every == 0:
+        if step + 1 > ds and ((step + 1) % tc.snap_every == 0 or step + 1 == total):
             save_weights(raw, mc, os.path.join(rd, "snap", f"step_{step + 1:06d}.pt"))
         if time.time() - t_ckpt >= tc.ckpt_minutes * 60 and step + 1 < stop:
             checkpoint()

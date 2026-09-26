@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from gibc.configs import ModelConfig, TrainConfig
+from gibc.configs import RUNS, ModelConfig, TrainConfig
 from gibc.model import GPT
 from gibc.optim import apply_lr, build_optimizers, decay_start, lr_mult
 
@@ -55,3 +55,10 @@ def test_lr_mult_schedule():
     assert lr_mult(total - 1, total, warm, dec) == 0.0
     decay = [lr_mult(s, total, warm, dec) for s in range(start, total)]
     assert all(a > b for a, b in zip(decay, decay[1:]))
+
+
+def test_adamw_sweep_arm_decays_matrices_at_0_1():
+    (opt,) = build_optimizers(GPT(CFG), RUNS["sweep_A_adamw"])
+    matrices, others = opt.param_groups
+    assert (matrices["weight_decay"], others["weight_decay"]) == (0.1, 0.0)
+    assert matrices["lr"] == others["lr"] == 2e-3
