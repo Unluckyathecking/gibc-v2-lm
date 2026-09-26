@@ -105,6 +105,51 @@ def test_resume_from_state_reproduces_next_batch(manifest):
         assert torch.equal(x1, x2) and torch.equal(y1, y2)
 
 
+def _grown(manifest, tmp_path):
+    """The manifest after a top-up: every source gains a fourth train shard."""
+    return {src: {**splits, "train": splits["train"] + [
+                _entry(tmp_path / f"{src}_t3.bin", SOURCE_BASE[src] + 300 + np.arange(100))]}
+            for src, splits in manifest.items()}
+
+
+def test_resume_ignores_shards_added_after_checkpoint(manifest, tmp_path):
+    mix = {"a": 0.5, "b": 0.5}
+    first = MixLoader(manifest, mix, B=4, T=T, seed=3)
+    for _ in range(5):
+        first.next_batch()
+    state = json.loads(json.dumps(first.state()))
+    grown = _grown(manifest, tmp_path)
+    assert MixLoader(grown, mix, B=4, T=T, seed=3).shards != first.shards  # order would move
+    resumed = MixLoader(grown, mix, B=4, T=T, state=state)
+    assert resumed.shards == first.shards
+    for _ in range(3):
+        (x1, y1), (x2, y2) = first.next_batch(), resumed.next_batch()
+        assert torch.equal(x1, x2) and torch.equal(y1, y2)
+
+
+def test_resume_from_state_without_shards_field(manifest):
+    mix = {"a": 0.5, "b": 0.5}
+    first = MixLoader(manifest, mix, B=4, T=T, seed=3)
+    first.next_batch()
+    old = {k: v for k, v in first.state().items() if k != "shards"}
+    resumed = MixLoader(manifest, mix, B=4, T=T, state=old)
+    assert resumed.shards == first.shards
+    assert torch.equal(first.next_batch()[0], resumed.next_batch()[0])
+
+
+def test_set_mix_new_source_after_pinned_restore(manifest, tmp_path):
+    first = MixLoader(manifest, {"a": 1.0}, B=2, T=T, seed=3)
+    first.next_batch()
+    state = first.state()
+    grown = _grown(manifest, tmp_path)
+    grown["d"] = {"train": [_entry(tmp_path / "d_t0.bin", 4000 + np.arange(100))], "val": []}
+    resumed = MixLoader(grown, {"a": 1.0}, B=2, T=T, state=state)
+    resumed.set_mix({"d": 1.0})
+    x, _ = resumed.next_batch()
+    assert torch.equal(x, torch.from_numpy(4000 + np.arange(2 * T).reshape(2, T)))
+    assert resumed.shards["d"] == MixLoader(grown, {"d": 1.0}, B=2, T=T, seed=3).shards["d"]
+
+
 def test_set_mix_keeps_cursors(manifest):
     loader = MixLoader(manifest, {"a": 1.0}, B=2, T=T)
     fresh = MixLoader(manifest, {"a": 1.0}, B=2, T=T)

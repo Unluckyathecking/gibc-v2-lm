@@ -1,11 +1,11 @@
 """Generate text from a trained checkpoint on a laptop (MPS or CPU), for the demo video.
 
 Usage:
-  modal volume get gibc-runs main_A/final.pt runs/main_A/final.pt
+  modal volume get gibc-runs main_vres_anneal/final.pt runs/main_vres_anneal/final.pt
   modal volume get gibc-data tok/tok32k/tokenizer.json runs/tokenizer.json
-  uv run python scripts/demo.py --ckpt runs/main_A/final.pt --tok runs/tokenizer.json \\
+  uv run python scripts/demo.py --ckpt runs/main_vres_anneal/final.pt --tok runs/tokenizer.json \\
       --prompt "The capital of France is" --prompt "Photosynthesis is"
-  uv run python scripts/demo.py --ckpt runs/main_A/final.pt --tok runs/tokenizer.json -i
+  uv run python scripts/demo.py --ckpt runs/main_vres_anneal/final.pt --tok runs/tokenizer.json -i
 """
 import argparse
 import time

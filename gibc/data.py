@@ -119,6 +119,9 @@ class MixLoader:
     every token after the first is a target once. A source that runs out raises RuntimeError.
     state() is JSON-able; MixLoader(..., state=s) restores cursors, mix and seed from s
     (overriding the mix and seed arguments) and reproduces the identical next batch.
+    state() also pins each source's resolved shard list, so shards added to the manifest
+    after a checkpoint cannot reorder a resumed run; sources absent from the pinned lists
+    (or every source, for an older state without them) are ordered from the manifest.
     """
 
     def __init__(self, manifest: dict, mix: dict, B: int, T: int, split: str = "train",
@@ -126,8 +129,10 @@ class MixLoader:
         if state is not None:
             mix, seed = state["mix"], state["seed"]
         self.B, self.T, self.split, self.seed = B, T, split, seed
-        self.shards = {src: _shard_order(s[split], seed, src, shuffle=split == "train")
-                       for src, s in manifest.items() if s.get(split)}
+        derived = {src: _shard_order(s[split], seed, src, shuffle=split == "train")
+                   for src, s in manifest.items() if s.get(split)}
+        pinned = {src: list(p) for src, p in (state or {}).get("shards", {}).items()}
+        self.shards = {**derived, **pinned}
         self.cursors = {src: [0, 0] for src in self.shards}
         if state is not None:
             self.cursors.update({src: list(c) for src, c in state["cursors"].items()})
@@ -144,7 +149,8 @@ class MixLoader:
 
     def state(self) -> dict:
         return {"mix": dict(self.mix), "seed": self.seed, "split": self.split,
-                "cursors": {src: list(c) for src, c in self.cursors.items()}}
+                "cursors": {src: list(c) for src, c in self.cursors.items()},
+                "shards": {src: list(p) for src, p in self.shards.items()}}
 
     def next_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
         buf = np.empty((self.B, self.T + 1), dtype=np.int64)
