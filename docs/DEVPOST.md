@@ -18,11 +18,11 @@ Track 01 caps the model at 50 million trainable parameters, embeddings and outpu
 
 gibc-v2-lm is a 14-layer decoder-only transformer, width 512, with 49,822,228 trainable parameters. The embedding and output head are one tied tensor, counted once. Counted twice it would be 66,599,444; the README shows both counts and the script that prints them. It is trained from random initialisation on 20B tokens with our own 32k byte-level BPE tokenizer.
 
-The submitted model is main_vres_anneal (final weights). Zero-shot on the full sets it scores HellaSwag 31.87 (acc_norm), ARC-Easy 55.18 (acc), PIQA 61.92 (acc), WinoGrande 51.62 and WikiText-103 test word perplexity 39.42 with lm-eval-style windows (35.21 with a stride-512 sliding window). The second main run, main_vres_mild, which uses a milder anneal, scores 32.15, 53.24, 61.97, 51.46 and 38.76. We submit the anneal run for its 1.9-point ARC-Easy lead at equal PIQA and WinoGrande. For scale, Pythia-70M reports HellaSwag 26.6, ARC-Easy 36.9 and PIQA 60.0 after 300B tokens, with a different recipe and data.
+The submitted model is main_vres_anneal (final weights). Zero-shot on the full sets it scores HellaSwag 31.87 (acc_norm), ARC-Easy 55.18 (acc), PIQA 61.92 (acc), WinoGrande 51.62 and WikiText-103 test word perplexity 39.42 with lm-eval-style windows (35.21 with a stride-512 sliding window). The second main run, main_vres_mild, which uses a milder anneal, scores 32.15, 53.24, 61.97, 51.46 and 38.76. We submit the anneal run for its 1.9-point ARC-Easy lead at equal PIQA and WinoGrande. A third 20B run, main_alt2_vres_anneal, uses the same recipe with a 16k tokenizer so that it is under 50M even with the tied matrix counted twice (41,433,620 once, 49,822,228 twice); it scores 31.61, 53.75, 61.43, 50.67 and 42.46, and is the compliant model if judges use that convention. For scale, Pythia-70M reports HellaSwag 26.6, ARC-Easy 36.9 and PIQA 60.0 after 300B tokens, with a different recipe and data.
 
 ### How we built it
 
-The recipe is Muon on the block matrices and AdamW on the embedding and scalars, with QK-norm, ReLU², U-net skips and a logit softcap from modded-nanogpt, plus a ResFormer value residual. Training uses a warmup-stable-decay schedule; for the last 35% the loader switches to a quality anneal mix of high-scoring FineWeb-Edu, FineMath and 5% decontaminated Wikipedia. The two main runs differ only in how hard the anneal leans on curated data. They took 8.58 and 8.36 H100-hours.
+The recipe is Muon on the block matrices and AdamW on the embedding and scalars, with QK-norm, ReLU², U-net skips and a logit softcap from modded-nanogpt, plus a ResFormer value residual. Training uses a warmup-stable-decay schedule; for the last 35% the loader switches to a quality anneal mix of high-scoring FineWeb-Edu, FineMath and 5% decontaminated Wikipedia. The two main runs differ only in how hard the anneal leans on curated data. They took 8.58 and 8.36 H100-hours; the third, 16k-vocabulary run took 7.75.
 
 Before committing to a 20B run we ran a 12-run, 1B-token ablation sweep: a baseline plus 11 single-change arms, each about half an H100-hour.
 
@@ -38,7 +38,7 @@ WikiText-103 is made of Wikipedia articles, and the web copies them. Before filt
 
 ### Accomplishments that we're proud of
 
-Every change in the main runs was tested first. Value residual cut 1B WikiText perplexity from 57.2 to 54.0 for 13 parameters, and Muon beat AdamW-only 57.2 to 89.0. The whole pipeline reproduces from public data with documented commands, and the README reports the unflattering results too.
+Every change in the main runs was tested first. We also trained a model that is under the 50M cap on both counting conventions, at a cost of 0.3 to 1.4 benchmark points and 7% WikiText perplexity. Value residual cut 1B WikiText perplexity from 57.2 to 54.0 for 13 parameters, and Muon beat AdamW-only 57.2 to 89.0. The whole pipeline reproduces from public data with documented commands, and the README reports the unflattering results too.
 
 ### What we learned
 
@@ -124,9 +124,9 @@ There is no standalone image of the full ablation table; slide 05 shows the key 
 | Team: all members by real full name, each with a Devpost account added to the submission | Form: team members | Add Mohammed Alibhai (and any teammates). Under-18 entrants need parental or guardian permission. |
 | At least 3 screenshots | Form: image gallery, section 4 above | Ready (5 images) |
 | Track selection | Form: Track 01, TECH (foundational LLM development) | Select on submit |
-| Track 01: at most 50,000,000 trainable params incl. embeddings and head; count script and config in repo | README "Parameter count", `scripts/count_params.py`, `gibc/configs.py` | Done; both conventions shown |
+| Track 01: at most 50,000,000 trainable params incl. embeddings and head; count script and config in repo | README "Parameter count", `scripts/count_params.py`, `gibc/configs.py` | Done; both conventions shown. Submitted model 49,822,228 counted once; `main_alt2_vres_anneal` is under the cap counted twice (49,822,228) |
 | Track 01: trained from scratch, no pretrained weights, fine-tuning or distillation | README intro, "Data", "AI use disclosure" | Done |
-| Track 01: hardware, total training time, approximate compute in README | README "Hardware, time and compute" | Done: 16.94 H100-hours for the main runs, about 22.3 in total, about 2 L4-hours of evaluation, run history |
+| Track 01: hardware, total training time, approximate compute in README | README "Hardware, time and compute" | Done: 24.69 H100-hours for the three main runs, about 30.0 in total, about 2 L4-hours of evaluation, run history |
 | Track 01: HellaSwag, ARC-Easy, PIQA, WinoGrande via lm-eval, WikiText-103 perplexity; numbers and eval script in README | README "Headline results", "Evaluation protocol", `gibc/evaluate.py`, `modal_eval.py` | Done |
 | AI tools disclosed in Built With and AI-assisted parts noted in README | Built With (section 3), README "AI use disclosure" | Done |
 | Commits pushed after the deadline may be disregarded | Push final README and results before the deadline | Pending |

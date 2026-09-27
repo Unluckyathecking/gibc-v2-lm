@@ -8,28 +8,31 @@ Everything in this repository was written by AI coding agents under human direct
 
 ## Headline results
 
-Final numbers for the two 20B-token main runs, final weights (after the last step). Accuracies are in percent.
+Final numbers for the three 20B-token main runs, final weights (after the last step). Accuracies are in percent.
 
-| | **main_vres_anneal** (submitted) | main_vres_mild |
-|---|---|---|
-| HellaSwag acc_norm | 31.87 | 32.15 |
-| ARC-Easy acc / acc_norm | 55.18 / 47.85 | 53.24 / 47.22 |
-| PIQA acc / acc_norm | 61.92 / 60.28 | 61.97 / 60.28 |
-| WinoGrande acc | 51.62 | 51.46 |
-| WikiText-103 test word ppl, lm-eval-style windows | 39.42 | 38.76 |
-| WikiText-103 test word ppl, stride 512 | 35.21 | 34.65 |
-| WikiText-103 test bits/byte, stride 512 | 0.9608 | 0.9565 |
-| Held-out val bits/byte | 0.9860 | 0.9825 |
-| Weights reported | final | final |
-| H100 hours | 8.58 | 8.36 |
+| | **main_vres_anneal** (submitted) | main_vres_mild | main_alt2_vres_anneal (16k vocab; under cap on both counting conventions) |
+|---|---|---|---|
+| HellaSwag acc_norm | 31.87 | 32.15 | 31.61 |
+| ARC-Easy acc / acc_norm | 55.18 / 47.85 | 53.24 / 47.22 | 53.75 / 46.21 |
+| PIQA acc / acc_norm | 61.92 / 60.28 | 61.97 / 60.28 | 61.43 / 58.32 |
+| WinoGrande acc | 51.62 | 51.46 | 50.67 |
+| WikiText-103 test word ppl, lm-eval-style windows | 39.42 | 38.76 | 42.46 |
+| WikiText-103 test word ppl, stride 512 | 35.21 | 34.65 | 37.81 |
+| WikiText-103 test bits/byte, stride 512 | 0.9608 | 0.9565 | 0.9801 |
+| Held-out val bits/byte | 0.9860 | 0.9825 | 1.0044 |
+| Trainable parameters, tied matrix once / twice | 49,822,228 / 66,599,444 | 49,822,228 / 66,599,444 | 41,433,620 / 49,822,228 |
+| Weights reported | final | final | final |
+| H100 hours | 8.58 | 8.36 | 7.75 |
 
-Submitted model: **main_vres_anneal** (final weights), 49,822,228 trainable parameters counted with the tied embedding and head once, 66,599,444 counted twice (see [Parameter count](#parameter-count)). All benchmarks are zero-shot on the full evaluation sets (no `--limit`). Standard errors are about ±0.45 points on HellaSwag, ±1.0 on ARC-Easy, ±1.1 on PIQA and ±1.4 on WinoGrande. Raw JSON: [`results/main/main_vres_anneal_eval_final.json`](results/main/main_vres_anneal_eval_final.json), [`results/main/main_vres_mild_eval_final.json`](results/main/main_vres_mild_eval_final.json), and the `*_eval_avg.json` files next to them; summary in [`results/main/eval_table.txt`](results/main/eval_table.txt).
+Submitted model: **main_vres_anneal** (final weights), 49,822,228 trainable parameters counted with the tied embedding and head once, 66,599,444 counted twice (see [Parameter count](#parameter-count)). All benchmarks are zero-shot on the full evaluation sets (no `--limit`). Standard errors are about ±0.45 points on HellaSwag, ±1.0 on ARC-Easy, ±1.1 on PIQA and ±1.4 on WinoGrande. Raw JSON: [`results/main/main_vres_anneal_eval_final.json`](results/main/main_vres_anneal_eval_final.json), [`results/main/main_vres_mild_eval_final.json`](results/main/main_vres_mild_eval_final.json), [`results/main/main_alt2_vres_anneal_eval_final.json`](results/main/main_alt2_vres_anneal_eval_final.json), and the `*_eval_avg.json` files next to them; summary in [`results/main/eval_table.txt`](results/main/eval_table.txt).
 
 **Why the anneal run.** It is 1.9 points better on ARC-Easy (55.18 vs 53.24; one standard error is about 1.0) at equal PIQA and WinoGrande. The mild run is 0.3 points better on HellaSwag, which is within noise, and 0.56 lower on stride-512 WikiText perplexity (1.6%), which is small but real. We submit the anneal run and report the mild run as the second main run and an ablation of anneal strength.
 
 **What 20B tokens changed.** At 1B tokens the strong anneal cost 2.7 points of PIQA. At 20B that loss did not appear (61.92 vs 61.97), while the stronger anneal's ARC-Easy gain held. Against the 1B `sweep_A_vres` checkpoint, the submitted model gains 3.2 points on HellaSwag and 8.0 on ARC-Easy, and WikiText perplexity (stride 512) falls from 53.95 to 35.21. For scale, Pythia-70M, trained on 300B tokens, reports HellaSwag 26.6, ARC-Easy 36.9 and PIQA 60.0; its recipe, data and parameter count differ from ours, so this is a rough reference, not a controlled comparison.
 
-**Checkpoint averaging gave no gain.** The mean of the last 4 decay-phase snapshots (250 steps apart) scores within 0.5 points of the final weights on every benchmark and within 0.05 on WikiText perplexity, in both runs. After a linear decay to zero learning rate the last snapshots are nearly identical, so there is little to average. The numbers are in `eval_table.txt`.
+**Vocabulary size at 20B tokens.** `main_alt2_vres_anneal` is the submitted recipe (value residual, the same anneal with Wikipedia, schedule, seed and batch) with the 16,384-entry tokenizer, which was trained on the same text sample as the 32k one. That leaves 41,433,620 trainable parameters counted once and 49,822,228 with the tied matrix counted twice, so it is under 50M on both conventions. Against the submitted model it is 0.26 points behind on HellaSwag (31.61 vs 31.87), 1.43 on ARC-Easy (53.75 vs 55.18), 0.49 on PIQA (61.43 vs 61.92) and 0.95 on WinoGrande (50.67 vs 51.62), all within about one standard error, and 7% worse on WikiText-103 perplexity (37.81 vs 35.21 at stride 512, 42.46 vs 39.42 lm-eval-style), with 8,388,608 fewer unique parameters. Its val bpb is measured with its own tokenizer, but bits per byte is comparable across tokenizers. If the judges count the tied matrix twice, this is the model that complies, and these are its numbers.
+
+**Checkpoint averaging gave no gain.** The mean of the last 4 decay-phase snapshots (250 steps apart) scores within 0.5 points of the final weights on every benchmark and within 0.05 on WikiText perplexity, in both runs where we evaluated it (`main_vres_anneal` and `main_vres_mild`). After a linear decay to zero learning rate the last snapshots are nearly identical, so there is little to average. The numbers are in `eval_table.txt`.
 
 Training curves for both main runs: [training loss](results/main/train_loss.png), [validation bpb](results/main/val_bpb.png), [throughput](results/main/tok_per_s.png). The anneal mix starts at step 24,795 (13B tokens).
 
@@ -93,7 +96,7 @@ The same arithmetic by hand:
 | Value-residual λ | 13 | 13 |
 | **Total trainable** | | **49,822,228** |
 
-That is 177,772 under the 50,000,000 cap. The rules count "total trainable parameters", including token embeddings and the output head. Here those are one tensor: the head reads `wte.weight` directly, there is no separate head matrix, and the optimizer updates 49,822,228 numbers. That count includes both the embedding and the head. If the tied matrix were counted twice, once as embedding and once as head, the total would be 66,599,444. We report both so the judges can apply either convention. The only swept config under 50M on both counts is `alt2` (16k vocabulary, 41,433,607 unique / 49,822,215 counted twice), which scored lower (see the ablation table).
+That is 177,772 under the 50,000,000 cap. The rules count "total trainable parameters", including token embeddings and the output head. Here those are one tensor: the head reads `wte.weight` directly, there is no separate head matrix, and the optimizer updates 49,822,228 numbers. That count includes both the embedding and the head. If the tied matrix were counted twice, once as embedding and once as head, the total would be 66,599,444. We report both so the judges can apply either convention. The configs under 50M on both counts use the 16k vocabulary: `alt2` in the sweep (41,433,607 once / 49,822,215 twice) and `alt2_vres`, the model of the third 20B run (41,433,620 once / 49,822,228 twice). Counted twice, `alt2_vres` has exactly as many parameters as the submitted model counted once, because two 16,384 x 512 matrices hold as many numbers as one 32,768 x 512 matrix. Its 20B results are in [Headline results](#headline-results).
 
 ## Training recipe
 
@@ -135,7 +138,7 @@ No pretrained weights, pretrained tokenizer, teacher model or distillation data 
 | English Wikipedia | [wikimedia/wikipedia](https://huggingface.co/datasets/wikimedia/wikipedia) (`20231101.en`) | CC-BY-SA 3.0 and GFDL | anneal only (5%) |
 | WikiText-103 | [Salesforce/wikitext](https://huggingface.co/datasets/Salesforce/wikitext) (`wikitext-103-raw-v1`) | CC-BY-SA 3.0 and GFDL | evaluation only; decontamination reference |
 
-**Tokenizer.** Byte-level BPE with 32,768 entries, trained with Hugging Face `tokenizers` on a 3 GB text sample: 85% in main-mix proportions, 15% FineWeb-Edu int_score>=4. Pre-tokenization uses the Llama 3 split regex. Special tokens `<|bos|>`, `<|eos|>` and `<|pad|>` are ids 0-2. A 16,384-entry tokenizer was trained on the same sample for the `alt2` ablation. Code: [`gibc/tokenize.py`](gibc/tokenize.py), [`modal_data.py`](modal_data.py).
+**Tokenizer.** Byte-level BPE with 32,768 entries, trained with Hugging Face `tokenizers` on a 3 GB text sample: 85% in main-mix proportions, 15% FineWeb-Edu int_score>=4. Pre-tokenization uses the Llama 3 split regex. Special tokens `<|bos|>`, `<|eos|>` and `<|pad|>` are ids 0-2. A 16,384-entry tokenizer was trained on the same sample for the `alt2` ablation and the `main_alt2_vres_anneal` run. Code: [`gibc/tokenize.py`](gibc/tokenize.py), [`modal_data.py`](modal_data.py).
 
 ### Decontamination
 
@@ -146,7 +149,7 @@ WikiText-103 is built from Wikipedia articles, and those articles are also mirro
 3. **Title filter, Wikipedia only.** Wikipedia articles whose normalised title matches a WikiText-103 validation or test article title are dropped whether or not they share a 13-gram.
 4. **Accounting.** Drop counts are recorded per shard (`n_docs_dropped_title`, `n_docs_dropped_ngram`) and summed per source in the manifest status.
 
-Totals for the 32k-tokenizer shards, from the data manifest: 4,969 documents dropped by the 13-gram filter (FineWeb-Edu 2,986, FineWeb-Edu int_score>=4 420, DCLM 424, FineMath 6, FinePDFs 8, Wikipedia 1,107 training and 18 validation) and 16 Wikipedia articles dropped by title. Because the filter and the overlap report use the same normalisation and 13-grams, no remaining document shares a 13-gram with WikiText-103 validation or test; we did not rerun the sample report on the filtered shards.
+Totals for the 32k-tokenizer shards, from the data manifest: 4,969 documents dropped by the 13-gram filter (FineWeb-Edu 2,986, FineWeb-Edu int_score>=4 420, DCLM 424, FineMath 6, FinePDFs 8, Wikipedia 1,107 training and 18 validation) and 16 Wikipedia articles dropped by title. The `tok16k` shards were tokenized with the same per-source token budgets and the same decontamination filter; their drop counts are in that tokenizer's manifest on the `gibc-data` volume and are not copied here. Because the filter and the overlap report use the same normalisation and 13-grams, no remaining document shares a 13-gram with WikiText-103 validation or test; we did not rerun the sample report on the filtered shards.
 
 The four multiple-choice benchmarks are **not** filtered. `modal_data.py::decontam_bench` reports their 13-gram overlap with a 300M-token sample of the filtered training shards (the first shard of each of the six sources, 219,831 documents). An item counts as hit if any 13-gram of its context joined with a candidate answer appears in the sample ([`results/decontam_bench.json`](results/decontam_bench.json)):
 
@@ -219,7 +222,7 @@ Modal volumes `gibc-data` (tokenizers, shards) and `gibc-runs` (checkpoints, log
 ```bash
 uv run modal run --detach modal_data.py::train_tokenizers          # tok32k and tok16k
 uv run modal run --detach modal_data.py::tokenize_all --tok tok32k # resumable; rerun to continue
-uv run modal run --detach modal_data.py::tokenize_all --tok tok16k # only needed for sweep_alt2
+uv run modal run --detach modal_data.py::tokenize_all --tok tok16k # only needed for sweep_alt2 and main_alt2_vres_anneal
 uv run modal run modal_data.py::check --tok tok32k                  # token totals, drop counts, sample windows
 uv run modal run --detach modal_data.py::decontam                   # WikiText-103 test overlap report
 uv run modal run --detach modal_data.py::decontam_bench             # benchmark item overlap report
@@ -231,7 +234,7 @@ uv run modal run --detach modal_data.py::decontam_bench             # benchmark 
 uv run modal run modal_train.py::smoke --model A --minutes 5        # throughput and memory check
 uv run modal run --detach modal_train.py::launch --group sweep      # all 12 sweep arms in parallel
 uv run modal run --detach modal_train.py::launch --group sweep_A,sweep_A_vres   # or any subset
-uv run modal run --detach modal_train.py::launch --group main       # main_vres_anneal and main_vres_mild
+uv run modal run --detach modal_train.py::launch --group main       # main_vres_anneal, main_vres_mild, main_alt2_vres_anneal
 uv run modal run modal_train.py::status                             # progress of every run
 ```
 
@@ -243,6 +246,7 @@ The `sweep` group is every `sweep_*` entry in `RUNS`, the 12 arms in the table a
 uv run modal run modal_eval.py::eval_sweep --limit 0                # every sweep arm, full sets, final weights
 uv run modal run modal_eval.py::main --run main_vres_anneal         # final and snapshot-averaged weights
 uv run modal run modal_eval.py::main --run main_vres_mild
+uv run modal run modal_eval.py::main --run main_alt2_vres_anneal
 ```
 
 Each command prints a results table and writes `{run}/evals/{variant}.json` to the `gibc-runs` volume. `eval_sweep` without `--limit 0` scores only the first 1,000 examples per task, which is a quick check, not a result. It covers every `sweep_*` run; pass `--runs a,b` for a subset.
@@ -268,14 +272,14 @@ uv run python scripts/demo.py --ckpt runs/final.pt --tok runs/tokenizer.json -i 
 |---|---|---|
 | Tokenizer training and tokenization | Modal CPU containers (up to 32 x 8 vCPU in parallel) | not timed end to end (several resumable passes); CPU only, no GPU |
 | 1B sweep, 12 arms | 1 x NVIDIA H100 80GB per arm | 21-32 min per arm; 5.23 H100-hours total |
-| Main runs, 20B tokens each | 1 x NVIDIA H100 80GB per run | 8.43 h (anneal) and 8.33 h (mild) wall-clock; 8.58 + 8.36 = 16.94 H100-hours |
+| Main runs, 20B tokens each | 1 x NVIDIA H100 80GB per run | 8.43 h (anneal), 8.33 h (mild) and 7.59 h (16k vocab) wall-clock; 8.58 + 8.36 + 7.75 = 24.69 H100-hours |
 | Evaluation | 1 x NVIDIA L4 24GB | 2.2-3.4 min per model (full benchmarks + both WikiText variants) |
 
-Measured training throughput (median tokens/s over each run's log, first 50 steps excluded): 845k for Config A, 800k with value residual, 632k for the weight-shared alt1, 963k for the 16k-vocabulary alt2. Per-arm figures are in `eval_table.csv`. The main runs trained at a median 826k tokens/s (0.63 s per step) and pause about 37 s for each validation pass every 250 steps, which puts an uninterrupted 38,146-step run at about 8.2 hours. The measured times above are higher because they include `torch.compile` warm-up and the steps redone after the interruption described below. H100-hours are the GPU time each run's status file records (`results/main/*_status.json`), redone steps included; wall-clock is the trainer's elapsed time.
+Measured training throughput (median tokens/s over each run's log, first 50 steps excluded): 845k for Config A, 800k with value residual, 632k for the weight-shared alt1, 963k for the 16k-vocabulary alt2. Per-arm figures are in `eval_table.csv`. The two 32k-vocabulary main runs trained at a median 826k tokens/s (0.63 s per step), and the 16k-vocabulary run at 910k (0.58 s per step). All three pause about 37 s for each validation pass every 250 steps, which puts an uninterrupted 38,146-step 32k run at about 8.2 hours. The measured times above are higher because they include `torch.compile` warm-up and the steps redone after the interruption described below. H100-hours are the GPU time each run's status file records (`results/main/*_status.json`), redone steps included; wall-clock is the trainer's elapsed time.
 
-Approximate training compute uses 6·N·D with N = 49.8M (the tied head's matmul costs as much as a separate head would), plus about 15% for causal attention at 1,024 context: roughly 3.4e17 FLOPs per 1B-token sweep arm and 6.9e18 FLOPs per 20B-token main run. At 800-845k tokens/s that is about 27-29% of the H100's dense bf16 peak. Total project compute: about 22.3 H100-hours for training (12 sweep arms 5.23, two main runs 16.94, smoke tests about 0.1), about 2 L4-hours for evaluation (approximate), and CPU only for tokenizer training and tokenization. The approximate total cost on Modal was about USD 120.
+Approximate training compute uses 6·N·D with N = 49.8M (the tied head's matmul costs as much as a separate head would), plus about 15% for causal attention at 1,024 context: roughly 3.4e17 FLOPs per 1B-token sweep arm and 6.9e18 FLOPs per 20B-token main run (5.7e18 for the 16k-vocabulary run, N = 41.4M). At 800-845k tokens/s that is about 27-29% of the H100's dense bf16 peak. Total project compute: about 30.0 H100-hours for training (12 sweep arms 5.23, three main runs 24.69, smoke tests about 0.1), about 2 L4-hours for evaluation (approximate), and CPU only for tokenizer training and tokenization. The approximate total cost on Modal was about USD 160.
 
-**Run history.** Both main runs were interrupted at 17:57 UK time on 26 September 2026, when the Modal workspace hit its spend limit: `main_vres_anneal` at step 37,209 and `main_vres_mild` at step 36,653, of 38,146. After the limit was raised, each resumed from its last full checkpoint (step 36,564 and step 34,562). A resume restores the model, optimizer state, RNG state and data-loader cursors. For `main_vres_anneal` there was one extra step: the data manifest had grown after the run started, so its checkpoint's shard order was pinned to the manifest it started with ([`scripts/pin_loader_state.py`](scripts/pin_loader_state.py)), and the pinned loader was checked to yield the same batches, batch for batch. On a GPU in bf16 with `torch.compile`, a resumed run can still differ from an uninterrupted one by floating-point noise. For `main_vres_mild`, when the limit was lifted Modal auto-restarted a stale driver, so for about 25 minutes two trainers ran in parallel from the same checkpoint, with identical state, until the extra one was stopped. The volume kept one writer's copy of each file. The only consequence is that `log.jsonl` is missing the lines for steps 36,654-36,871 (218 of 38,146); checkpoints, snapshots and final weights are unaffected.
+**Run history.** Both main runs were interrupted at 17:57 UK time on 26 September 2026, when the Modal workspace hit its spend limit: `main_vres_anneal` at step 37,209 and `main_vres_mild` at step 36,653, of 38,146. After the limit was raised, each resumed from its last full checkpoint (step 36,564 and step 34,562). A resume restores the model, optimizer state, RNG state and data-loader cursors. For `main_vres_anneal` there was one extra step: the data manifest had grown after the run started, so its checkpoint's shard order was pinned to the manifest it started with ([`scripts/pin_loader_state.py`](scripts/pin_loader_state.py)), and the pinned loader was checked to yield the same batches, batch for batch. On a GPU in bf16 with `torch.compile`, a resumed run can still differ from an uninterrupted one by floating-point noise. For `main_vres_mild`, when the limit was lifted Modal auto-restarted a stale driver, so for about 25 minutes two trainers ran in parallel from the same checkpoint, with identical state, until the extra one was stopped. The volume kept one writer's copy of each file. The only consequence is that `log.jsonl` is missing the lines for steps 36,654-36,871 (218 of 38,146); checkpoints, snapshots and final weights are unaffected. `main_alt2_vres_anneal` (trained 26-27 September) was also stopped once by the spend limit, at step 36,205, and resumed exactly from its step-33,253 checkpoint; its data manifest had not changed, so no pinning was needed, and its log is complete.
 
 ## Evaluation protocol
 
@@ -317,12 +321,12 @@ PyTorch 2.11 (including `torch.optim.Muon`), Hugging Face `tokenizers`, `transfo
 - **Single seed, short sweep.** Ablations are single-seed 1B-token runs; benchmark differences under about 2 points are noise, and conclusions at 1B tokens may not hold at 20B.
 - **Untested combination.** The main runs combine value residual with the Wikipedia anneal. Neither the combination nor the Wikipedia anneal alone had a 1B result before the main runs started.
 - **Main runs are not a clean A/B.** Besides the anneal mix, the two main runs read FineWeb-Edu and DCLM shards in different orders (see [Data mixes](#data-mixes)), so a small difference between them may come from data order rather than the anneal.
-- **Parameter-count convention.** The model is under 50M with the tied embedding and head counted once, as one trainable tensor. It is 66.6M if the tied matrix is counted twice (see [Parameter count](#parameter-count)).
+- **Parameter-count convention.** The submitted model is under 50M with the tied embedding and head counted once, as one trainable tensor. It is 66.6M if the tied matrix is counted twice (see [Parameter count](#parameter-count)). Under that convention the compliant model is `main_alt2_vres_anneal` (49,822,228 counted twice), which scores 0.3-1.4 points lower on the benchmarks and 7% worse on WikiText perplexity.
 - **Benchmarks are not decontaminated.** Only WikiText-103 is filtered from training data; the four multiple-choice benchmarks are measured for overlap but not filtered.
 - **Small-model benchmark scores.** At this scale HellaSwag and WinoGrande sit only a few points above chance (25% and 50%), so small differences in those two carry little information.
 - **Evaluation numerics.** Evaluation runs in bf16 on an L4, which can differ in the last digit from an fp32 run. Our lm-eval-style WikiText number is close to, but not bit-identical with, lm-eval's own `wikitext` task.
 - **Context.** The context is 1,024 tokens, and attention crosses document boundaries during training.
-- **Interrupted main runs.** Both main runs were stopped by a spend limit near the end and resumed from checkpoints (see [Run history](#hardware-time-and-compute)). The resume is exact in data and optimizer state, but in bf16 with `torch.compile` it may differ from an uninterrupted run by floating-point noise, and `main_vres_mild`'s training log is missing 218 steps (36,654-36,871) because two trainers briefly wrote to the same run.
+- **Interrupted main runs.** All three main runs were stopped by a spend limit near the end and resumed from checkpoints (see [Run history](#hardware-time-and-compute)). The resume is exact in data and optimizer state, but in bf16 with `torch.compile` it may differ from an uninterrupted run by floating-point noise, and `main_vres_mild`'s training log is missing 218 steps (36,654-36,871) because two trainers briefly wrote to the same run.
 
 ## Citations
 
