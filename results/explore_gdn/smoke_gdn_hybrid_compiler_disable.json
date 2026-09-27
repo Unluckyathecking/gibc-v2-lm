@@ -1,0 +1,20 @@
+{
+  "model": "gdn_hybrid",
+  "device": "NVIDIA H100 80GB HBM3",
+  "params": {
+    "once": 49544401,
+    "twice": 66321617,
+    "embedding": 16777216,
+    "non_embedding": 32767185
+  },
+  "micro_bsz": 64,
+  "grad_accum": 8,
+  "ctx": 1024,
+  "compile_s": 141.3,
+  "steps": 26,
+  "tok_per_s": 351286,
+  "step_s": 1.4925,
+  "loss": 10.405533790588379,
+  "loss_finite": true,
+  "peak_mem_gb": 54.78
+}
