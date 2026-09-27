@@ -4,6 +4,8 @@ Submission for the Global Innovation Build Challenge V2, Track 01 (TECH, foundat
 
 We train a 14-layer decoder-only transformer with 49,822,228 trainable parameters from random initialisation on 20B tokens of openly licensed English web, maths, PDF and Wikipedia text, using our own 32k BPE tokenizer. The recipe is the modded-nanogpt family of speedrun techniques (Muon, QK-norm, ReLU², U-net skips, logit softcap) plus a ResFormer value residual, a warmup-stable-decay schedule, and a quality-data anneal during the decay phase. Every design choice that made it into the main runs was tested first in a 12-arm, 1B-token ablation sweep, reported in full below. Training data is decontaminated against WikiText-103 validation and test at the document level before tokenization. A main run takes about 8 hours on one H100.
 
+Demo video (3:39): https://youtu.be/rbA6RGoDeYU
+
 Everything in this repository was written by AI coding agents under human direction. See [AI use disclosure](#ai-use-disclosure).
 
 ## Headline results

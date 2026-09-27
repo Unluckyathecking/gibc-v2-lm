@@ -117,7 +117,7 @@ There is no standalone image of the full ablation table; slide 05 shows the key 
 |---|---|---|
 | Project description | Form: "About the project", section 2 above | Ready |
 | Public source repo with README: setup, prerequisites, run instructions | https://github.com/Unluckyathecking/gibc-v2-lm, README "Reproduction" | **Repo is currently private. Make it public before submitting.** |
-| Demo video, 2-5 min, YouTube/Vimeo/Youku, unlisted OK, English audio or subtitles | `video/gibc_demo.mp4` (4 min 25 s, English narration), `video/captions.srt`; form: video link | Rendered with final numbers; upload unlisted, add the SRT as subtitles, paste link |
+| Demo video, 2-5 min, YouTube/Vimeo/Youku, unlisted OK, English audio or subtitles | `video/gibc_demo.mp4` (4 min 25 s, English narration), `video/captions.srt`; form: video link https://youtu.be/rbA6RGoDeYU | Rendered with final numbers; upload unlisted, add the SRT as subtitles, paste link |
 | Built With: every technology, library, API, dataset, hardware, AI tools | Form: Built With, section 3 above | Ready |
 | Team: all members by real full name, each with a Devpost account added to the submission | Form: team members | Add Mohammed Alibhai (and any teammates). Under-18 entrants need parental or guardian permission. |
 | At least 3 screenshots | Form: image gallery, section 4 above | Ready (5 images) |
