@@ -1,23 +1,5 @@
 # Demo video outline (target 3-4 minutes, hard limits 2-5)
 
-## Rendering the video
-
-The video is rendered automatically; the narration and slides live in [`video/script.json`](../video/script.json), which is the source of truth (the outline below is the original plan it was written from).
-
-```bash
-uv run modal volume get gibc-runs main_vres_anneal/final.pt runs/final.pt
-uv run modal volume get gibc-data tok/tok32k/tokenizer.json runs/tokenizer.json
-uv run python scripts/make_video.py --ckpt runs/final.pt --tok runs/tokenizer.json
-```
-
-This samples the demo prompts from the checkpoint, synthesises the narration with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (a local neural TTS, Apache-2.0, run on the CPU), renders one 1920x1080 slide per scene plus a typewriter animation of the demo output, and writes `video/gibc_demo.mp4` (H.264 + AAC 48 kHz, loudness-normalised to -16 LUFS), `video/captions.srt`, `video/slides/*.png` and `video/demo_output.json` (raw samples). It takes about a minute on an Apple laptop (`--reuse-demo` skips re-sampling the checkpoint) and needs `ffmpeg` and `espeak-ng` on the PATH (`brew install ffmpeg espeak-ng`). Kokoro is in the `dev` dependency group, so `uv sync` installs it; its weights (~330 MB) download from Hugging Face on first use, with no account or key.
-
-The voice is `voice` in `script.json` (default `bf_emma`, British female; `speed` 1.0). Override it with `--voice`: British `bf_emma`, `bf_isabella`, `bm_george`, `bm_lewis`, or American `af_heart`, `am_michael` (the first letter picks the accent; full list on the model card). To judge a voice quickly, `--sample --voice bm_george` renders only the first scene to `video/voice_sample.mp4` in about 10 seconds. `--tts say` falls back to macOS `say`, using `say_voice` and `rate` from `script.json` (or `--voice Daniel`).
-
-`--tts openrouter --model <id> --voice <name> [--style "<prompt>"]` narrates through an OpenRouter TTS model instead, one request per scene (MP3, decoded with ffmpeg), reading `OPENROUTER_API_KEY` from the environment; the SDK retries 429 and 5xx responses and the script prints each request's cost. `--style` reaches Google Gemini TTS (as `speech_metadata.style`) and OpenAI TTS (as `instructions`) models and is ignored for others. With `--sample` the raw MP3 is kept next to the clip. Scene-1 comparison clips and the command that renders them are in `video/voice_samples/`.
-
-The `values` block at the top of `video/script.json` holds the final numbers for the submitted model, `main_vres_anneal` (final weights): run name, benchmark scores, WikiText perplexity, val bits/byte, GPU hours, weights variant, a one-sentence remark and the demo checkpoint label. To change them, edit that block and rerun the command. The script lists any `[FINAL` placeholder still left when it finishes. `pronounce` maps written terms to how the voice should say them; captions keep the written form.
-
 ## Recording your own voiceover
 
 To narrate the video yourself instead of using a synthetic voice, record one take per scene with the teleprompter, then render with `--tts voiceover`. Budget about 30 minutes for the eight scenes.
@@ -53,6 +35,26 @@ Tips for a clean recording:
 - Rehearse a scene once in rehearse mode (M) if it has numbers or names you might trip over.
 - Leave a breath of silence after the countdown and at the end before pressing Space; the trim removes it, along with the click of the Space key.
 - Play each take back with P before moving on; retakes are cheap.
+
+The submitted video (3:39) uses this path: eight takes recorded by Mohammed Alibhai with the teleprompter, assembled with `--tts voiceover`.
+
+## Rendering with synthetic narration (not used for the submission)
+
+The video is rendered automatically; the narration and slides live in [`video/script.json`](../video/script.json), which is the source of truth (the outline below is the original plan it was written from).
+
+```bash
+uv run modal volume get gibc-runs main_vres_anneal/final.pt runs/final.pt
+uv run modal volume get gibc-data tok/tok32k/tokenizer.json runs/tokenizer.json
+uv run python scripts/make_video.py --ckpt runs/final.pt --tok runs/tokenizer.json
+```
+
+Synthetic narration was not used for the submitted video (see the voiceover section above), but the pipeline supports it: this samples the demo prompts from the checkpoint, synthesises the narration with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (a local neural TTS, Apache-2.0, run on the CPU), renders one 1920x1080 slide per scene plus a typewriter animation of the demo output, and writes `video/gibc_demo.mp4` (H.264 + AAC 48 kHz, loudness-normalised to -16 LUFS), `video/captions.srt`, `video/slides/*.png` and `video/demo_output.json` (raw samples). It takes about a minute on an Apple laptop (`--reuse-demo` skips re-sampling the checkpoint) and needs `ffmpeg` and `espeak-ng` on the PATH (`brew install ffmpeg espeak-ng`). Kokoro is in the `dev` dependency group, so `uv sync` installs it; its weights (~330 MB) download from Hugging Face on first use, with no account or key.
+
+The voice is `voice` in `script.json` (default `bf_emma`, British female; `speed` 1.0). Override it with `--voice`: British `bf_emma`, `bf_isabella`, `bm_george`, `bm_lewis`, or American `af_heart`, `am_michael` (the first letter picks the accent; full list on the model card). To judge a voice quickly, `--sample --voice bm_george` renders only the first scene to `video/voice_sample.mp4` in about 10 seconds. `--tts say` falls back to macOS `say`, using `say_voice` and `rate` from `script.json` (or `--voice Daniel`).
+
+`--tts openrouter --model <id> --voice <name> [--style "<prompt>"]` narrates through an OpenRouter TTS model instead, one request per scene (MP3, decoded with ffmpeg), reading `OPENROUTER_API_KEY` from the environment; the SDK retries 429 and 5xx responses and the script prints each request's cost. `--style` reaches Google Gemini TTS (as `speech_metadata.style`) and OpenAI TTS (as `instructions`) models and is ignored for others. With `--sample` the raw MP3 is kept next to the clip. Scene-1 comparison clips and the command that renders them are in `video/voice_samples/`.
+
+The `values` block at the top of `video/script.json` holds the final numbers for the submitted model, `main_vres_anneal` (final weights): run name, benchmark scores, WikiText perplexity, val bits/byte, GPU hours, weights variant, a one-sentence remark and the demo checkpoint label. To change them, edit that block and rerun the command. The script lists any `[FINAL` placeholder still left when it finishes. `pronounce` maps written terms to how the voice should say them; captions keep the written form.
 
 ## Script
 

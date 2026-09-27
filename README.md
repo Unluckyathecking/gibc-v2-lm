@@ -314,7 +314,7 @@ The model itself is trained from scratch. No AI model's weights were used, and n
 
 ## Built with
 
-PyTorch 2.11 (including `torch.optim.Muon`), Hugging Face `tokenizers`, `transformers` and `huggingface_hub`, lm-evaluation-harness 0.4.13, PyArrow, NumPy, Matplotlib, uv, and Modal (NVIDIA H100 80GB for training, NVIDIA L4 for evaluation, CPU containers for data). The demo video was rendered with ffmpeg and Kokoro-82M text-to-speech. Code was written with Claude Code. The training recipe and the token-shard format follow modded-nanogpt (see [Citations](#citations)).
+PyTorch 2.11 (including `torch.optim.Muon`), Hugging Face `tokenizers`, `transformers` and `huggingface_hub`, lm-evaluation-harness 0.4.13, PyArrow, NumPy, Matplotlib, uv, and Modal (NVIDIA H100 80GB for training, NVIDIA L4 for evaluation, CPU containers for data). The demo video was assembled with ffmpeg from slides rendered with Matplotlib/PIL and narration recorded by the participant. Code was written with Claude Code. The training recipe and the token-shard format follow modded-nanogpt (see [Citations](#citations)).
 
 ## Limitations
 

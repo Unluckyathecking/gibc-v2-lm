@@ -23,250 +23,246 @@ It learned from random weights on twenty billion tokens of openly licensed Engli
 text, with my own tokenizer, on one H one hundred in about eight hours.
 
 7
-00:00:21,300 --> 00:00:22,117
+00:00:21,300 --> 00:00:22,022
 So, the model.
 
 8
-00:00:22,117 --> 00:00:26,175
+00:00:22,022 --> 00:00:25,602
 It's a fourteen-layer transformer, five hundred and twelve wide, with
 
 9
-00:00:26,175 --> 00:00:30,467
+00:00:25,602 --> 00:00:29,391
 grouped-query attention, rotary embeddings, Q-K norm, and a squared ReLU.
 
 10
-00:00:30,467 --> 00:00:34,235
+00:00:29,391 --> 00:00:32,716
 U-net style skips connect early layers to late ones, and a value
 
 11
-00:00:34,235 --> 00:00:37,590
+00:00:32,716 --> 00:00:35,678
 residual lets every layer reuse the first layer's values.
 
 12
-00:00:37,590 --> 00:00:41,010
-The thirty-two-thousand-entry embedding is shared with the
+00:00:35,678 --> 00:00:39,569
+The thirty-two-thousand-entry embedding is shared with the output head, the
 
 13
-00:00:41,010 --> 00:00:43,604
-output head and takes a third of the budget.
+00:00:39,569 --> 00:00:43,460
+standard weight tying used since GPT-2, and it takes a third of the budget.
 
 14
-00:00:43,604 --> 00:00:47,867
-Counted once, as one tensor, the total is forty-nine point eight million.
+00:00:43,460 --> 00:00:46,683
+In total, forty-nine point eight million trainable parameters,
 
 15
-00:00:47,867 --> 00:00:50,669
-Counted twice, it's sixty-six point six million.
+00:00:46,683 --> 00:00:49,283
+about a hundred and eighty thousand under the cap.
 
 16
-00:00:50,669 --> 00:00:51,487
-I report both.
-
-17
-00:00:52,420 --> 00:00:53,312
+00:00:50,220 --> 00:00:51,112
 Next, training.
 
-18
-00:00:53,312 --> 00:00:55,869
+17
+00:00:51,112 --> 00:00:53,669
 I used the modded nano-GPT speedrun recipe.
 
-19
-00:00:55,869 --> 00:00:58,877
+18
+00:00:53,669 --> 00:00:56,677
 Muon (MEW-on) updates the block matrices, and Adam
 
-20
-00:00:58,877 --> 00:01:01,043
+19
+00:00:56,677 --> 00:00:58,843
 W handles the embedding and scalars.
 
-21
-00:01:01,043 --> 00:01:05,116
+20
+00:00:58,843 --> 00:01:02,916
 The learning rate warms up, holds, then decays to zero over the last
 
-22
-00:01:05,116 --> 00:01:09,308
+21
+00:01:02,916 --> 00:01:07,108
 thirty-five percent, when the data switches to higher-quality sources.
 
-23
-00:01:09,309 --> 00:01:14,244
+22
+00:01:07,108 --> 00:01:12,044
 Averaging the last few snapshots made no difference, so I report the final weights.
 
-24
-00:01:14,244 --> 00:01:18,229
+23
+00:01:12,044 --> 00:01:16,028
 Near the end, both runs stopped when I hit my cloud spending limit.
 
-25
-00:01:18,229 --> 00:01:21,112
+24
+00:01:16,028 --> 00:01:18,912
 They resumed exactly from their last checkpoint,
 
-26
-00:01:21,112 --> 00:01:24,175
+25
+00:01:18,912 --> 00:01:21,975
 optimizer, random state and data position included.
 
-27
-00:01:25,100 --> 00:01:29,062
+26
+00:01:22,900 --> 00:01:26,862
 On to the data: FineWeb-Edu, D-C-L-M, FineMath, FinePDFs and Wikipedia,
 
-28
-00:01:29,062 --> 00:01:32,187
+27
+00:01:26,862 --> 00:01:29,987
 all openly licensed, none of it intentionally synthetic.
 
-29
-00:01:32,187 --> 00:01:36,450
+28
+00:01:29,987 --> 00:01:34,250
 WikiText one-oh-three comes from Wikipedia, which is copied all over the web.
 
-30
-00:01:36,450 --> 00:01:39,136
+29
+00:01:34,250 --> 00:01:36,936
 Before filtering, about five percent of its test
 
-31
-00:01:39,136 --> 00:01:41,821
+30
+00:01:36,936 --> 00:01:39,621
 thirteen-grams turned up in our training sample.
 
-32
-00:01:41,821 --> 00:01:46,447
+31
+00:01:39,621 --> 00:01:44,247
 So we drop every document sharing a thirteen-gram with WikiText validation or test,
 
-33
-00:01:46,447 --> 00:01:50,182
+32
+00:01:44,247 --> 00:01:47,982
 just under five thousand, plus sixteen Wikipedia articles by title.
 
-34
-00:01:50,182 --> 00:01:53,259
+33
+00:01:47,982 --> 00:01:51,059
 The multiple-choice benchmarks aren't filtered, but the
 
-35
-00:01:53,259 --> 00:01:55,442
+34
+00:01:51,059 --> 00:01:53,242
 measured overlap is a handful of items.
 
-36
-00:01:56,380 --> 00:02:00,016
+35
+00:01:54,180 --> 00:01:57,816
 Before spending eight GPU hours on a main run, we ran twelve
 
-37
-00:02:00,016 --> 00:02:03,349
+36
+00:01:57,816 --> 00:02:01,149
 one-billion-token experiments, each changing one thing.
 
-38
-00:02:03,349 --> 00:02:05,391
+37
+00:02:01,149 --> 00:02:03,191
 Muon beat Adam W by a wide margin.
 
-39
-00:02:05,391 --> 00:02:09,750
+38
+00:02:03,191 --> 00:02:07,550
 The value residual gave the biggest perplexity gain, fifty-seven down to
 
-40
-00:02:09,750 --> 00:02:13,141
+39
+00:02:07,550 --> 00:02:10,941
 fifty-four, for thirteen extra parameters, so I kept it.
 
-41
-00:02:13,141 --> 00:02:16,235
+40
+00:02:10,941 --> 00:02:14,035
 The quality anneal raised ARC-Easy but lowered PIQA
 
-42
-00:02:16,235 --> 00:02:19,208
+41
+00:02:14,035 --> 00:02:17,008
 (PIE-kah), so my two main runs try two strengths.
 
-43
-00:02:19,208 --> 00:02:23,954
+42
+00:02:17,008 --> 00:02:21,754
 With one seed each, gaps under two points are noise, so I leaned on perplexity.
 
-44
-00:02:24,860 --> 00:02:28,893
+43
+00:02:22,660 --> 00:02:26,693
 These are the submitted model's final numbers, after all twenty billion tokens.
 
-45
-00:02:28,893 --> 00:02:30,730
+44
+00:02:26,693 --> 00:02:28,530
 HellaSwag, about thirty-two percent.
 
-46
-00:02:30,730 --> 00:02:32,109
+45
+00:02:28,530 --> 00:02:29,909
 ARC-Easy, about fifty-five.
 
-47
-00:02:32,109 --> 00:02:33,232
+46
+00:02:29,909 --> 00:02:31,032
 PIQA, about sixty-two.
 
-48
-00:02:33,232 --> 00:02:35,529
+47
+00:02:31,032 --> 00:02:33,329
 WinoGrande, about fifty-two, close to chance.
 
-49
-00:02:35,529 --> 00:02:37,519
+48
+00:02:33,329 --> 00:02:35,319
 WikiText perplexity, about thirty-nine.
 
-50
-00:02:37,519 --> 00:02:40,764
+49
+00:02:35,319 --> 00:02:38,564
 Against the one-billion-token run, ARC-Easy is up eight points,
 
-51
-00:02:40,764 --> 00:02:43,339
+50
+00:02:38,564 --> 00:02:41,139
 and perplexity fell from sixty-one to thirty-nine.
 
-52
-00:02:43,339 --> 00:02:46,124
+51
+00:02:41,139 --> 00:02:43,924
 The PIQA drop from the strong anneal didn't show up at
 
-53
-00:02:46,124 --> 00:02:48,188
+52
+00:02:43,924 --> 00:02:45,988
 twenty billion, so I submitted that run.
 
-54
-00:02:48,188 --> 00:02:52,068
+53
+00:02:45,988 --> 00:02:49,868
 All zero-shot, on the full evaluation sets, with the L-M evaluation harness.
 
-55
-00:02:52,980 --> 00:02:55,891
+54
+00:02:50,780 --> 00:02:53,691
 And now the model itself, running locally on my laptop.
 
-56
-00:02:55,891 --> 00:02:58,220
+55
+00:02:53,691 --> 00:02:56,020
 I give it three prompts and let it continue.
 
-57
-00:02:58,220 --> 00:03:00,867
+56
+00:02:56,020 --> 00:02:58,667
 It's grammatical and keeps the tone of the prompt.
 
-58
-00:03:00,867 --> 00:03:04,071
+57
+00:02:58,667 --> 00:03:01,871
 It also gets facts wrong and repeats itself, and in my other
 
-59
-00:03:04,071 --> 00:03:06,848
+58
+00:03:01,871 --> 00:03:04,648
 samples it couldn't do a simple apples word problem.
 
-60
-00:03:06,848 --> 00:03:09,547
+59
+00:03:04,648 --> 00:03:07,347
 That's what I'd expect at fifty million parameters.
 
-61
-00:03:13,300 --> 00:03:17,496
+60
+00:03:11,100 --> 00:03:15,184
 Finally, everything needed to reproduce this is in the repository.
 
-62
-00:03:17,496 --> 00:03:20,708
+61
+00:03:15,184 --> 00:03:18,311
 U-V installs the pinned environment, and the Modal
 
-63
-00:03:20,708 --> 00:03:23,471
+62
+00:03:18,311 --> 00:03:21,000
 scripts build the data, train and evaluate.
 
-64
-00:03:23,471 --> 00:03:27,731
+63
+00:03:21,000 --> 00:03:25,145
 On AI use: I built this with Claude Code agents under my direction.
 
-65
-00:03:27,731 --> 00:03:32,054
+64
+00:03:25,145 --> 00:03:29,353
 The agents wrote the code, ran the experiments and drafted the docs.
 
-66
-00:03:32,054 --> 00:03:36,348
+65
+00:03:29,353 --> 00:03:33,532
 I set the goals, made the decisions, reviewed the work and paid for
 
-67
-00:03:36,348 --> 00:03:39,873
+66
+00:03:33,532 --> 00:03:36,963
 compute, and I can explain the code and design choices.
 
-68
-00:03:39,873 --> 00:03:41,144
+67
+00:03:36,963 --> 00:03:38,201
 Thanks for watching.
 

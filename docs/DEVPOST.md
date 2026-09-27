@@ -70,8 +70,6 @@ nvidia-h100
 nvidia-l4
 uv
 ffmpeg
-kokoro-tts
-espeak-ng
 ```
 
 AI tools
@@ -97,7 +95,7 @@ piqa
 winogrande
 ```
 
-`transformers`, `huggingface_hub`, PyArrow, NumPy, Matplotlib and espeak-ng are listed because the README's Built With section and the video pipeline use them, and the rules ask for every technology. The four benchmarks are listed as evaluation datasets.
+`transformers`, `huggingface_hub`, PyArrow, NumPy and Matplotlib are listed because the README's Built With section and the video pipeline use them, and the rules ask for every technology. The four benchmarks are listed as evaluation datasets.
 
 ## 4. Screenshots
 
