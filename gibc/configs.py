@@ -95,7 +95,13 @@ class ModelConfig:
     rope_base: float = 10_000.0
     tokenizer: str = "tok32k"
     xsa: bool = False             # Exclusive Self Attention with a learned gate per layer and head (+n_eff*n_head)
-    value_residual: bool = False  # blend each layer's V with layer 1's V via a learned scalar per layer (+n_eff-1)
+    value_residual: bool = False  # blend each attention layer's V with the first attention layer's V (+n_attn-1)
+    # Gated DeltaNet hybrid (fla's GatedDeltaNet, CUDA only): these effective layers use a GDN
+    # mixer instead of attention. Needs repeats == 1. Empty: every layer is attention.
+    gdn_layers: tuple[int, ...] = ()
+    gdn_heads: int = 4
+    gdn_head_dim: int = 64       # q/k head dim
+    gdn_expand_v: float = 1.25   # v head dim = gdn_head_dim * gdn_expand_v
 
     @property
     def n_eff(self) -> int:
@@ -122,6 +128,12 @@ MODEL_CONFIGS["A_xsa"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "xsa": Tr
 MODEL_CONFIGS["A_vres"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "value_residual": True})
 # 16k-vocab twin of A_vres: 41,433,620 once / 49,822,228 twice, under the cap on both conventions.
 MODEL_CONFIGS["alt2_vres"] = ModelConfig(**{**MODEL_CONFIGS["alt2"].__dict__, "value_residual": True})
+# Qwen3-Next-style hybrid of A_vres: softmax attention at layers 3, 7, 11, GDN elsewhere.
+# 4 heads x 64 (v 80) with output gate: 761,176 params per GDN mixer vs 786,432 per
+# attention, so 49,544,401 total (value residual keeps 2 scalars, for layers 7 and 11).
+MODEL_CONFIGS["gdn_hybrid"] = ModelConfig(**{
+    **MODEL_CONFIGS["A_vres"].__dict__,
+    "gdn_layers": tuple(i for i in range(14) if i not in (3, 7, 11))})
 PARAM_CAP = 50_000_000
 
 
@@ -175,6 +187,8 @@ RUNS = {
     # Same optimizer at modded-nanogpt's record hyperparameters (lr 0.023, wd 1.2).
     "sweep_A_normuon_rec": TrainConfig("A", SWEEP_TOKENS, opt="normuon", cautious_wd=True,
                                        muon_lr=0.023, muon_wd=1.2),
+    # Exploration (branch explore/gdn-hybrid): Gated DeltaNet hybrid, same recipe as sweep_A_vres.
+    "sweep_gdn_hybrid": TrainConfig("gdn_hybrid", SWEEP_TOKENS),
     # Main runs (20B tokens): Config A + value residual, chosen from the 1B sweep; they differ in anneal strength.
     "main_vres_anneal": TrainConfig("A_vres", 20_000_000_000, mix_anneal=dict(MIX_ANNEAL_WIKI)),
     "main_vres_mild": TrainConfig("A_vres", 20_000_000_000, mix_anneal=dict(MIX_ANNEAL_MILD_WIKI)),

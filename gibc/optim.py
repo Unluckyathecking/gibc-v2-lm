@@ -14,6 +14,8 @@ def split_params(model: nn.Module) -> tuple[list, list]:
     matrices = [p for p in model.blocks.parameters() if p.ndim == 2]
     matrix_ids = {id(p) for p in matrices}
     others = [p for p in model.parameters() if id(p) not in matrix_ids]
+    # Every parameter in exactly one group (GDN's A_log/dt_bias/conv weights are 1D/3D: others).
+    assert len(matrices) + len(others) == len(list(model.parameters())), "param grouping"
     return matrices, others
 
 

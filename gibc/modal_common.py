@@ -13,7 +13,11 @@ image = (
         "pyarrow>=17",
         "huggingface_hub>=0.30",
         "numpy>=2",
+        "flash-linear-attention==0.5.2",  # Gated DeltaNet (fla-core Triton kernels)
     )
+    # torch 2.11 pins triton 3.6.0, which fla refuses on Hopper: its gated chunk_bwd_dqkwg
+    # kernel gives wrong results on Triton 3.4-3.7.0 (fla issue #640). 3.7.1 is the fix.
+    .pip_install("triton==3.7.1")
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "0", "TOKENIZERS_PARALLELISM": "true"})
     .add_local_python_source("gibc")  # must stay last: local files are mounted at start
 )

@@ -12,6 +12,11 @@ Opt-in (both off by default; off leaves the state_dict and outputs unchanged):
   V (after Wv; V has no RoPE) is kept; each later effective layer l attends with
   lam_l * v_l + (1 - lam_l) * v_0, lam_l init 0.5. Layer 0 is unchanged: n_eff - 1 scalars.
 Both sets of scalars live on GPT (not in blocks), 1-D, so optim.split_params sends them to AdamW.
+- cfg.gdn_layers: those effective layers swap attention for fla's GatedDeltaNet (arXiv
+  2412.06464; short convs, output gate + its own gated RMSNorm, no RoPE). The MLP, norms and
+  U-net skips are unchanged. Value residual then covers attention layers only: the first
+  attention layer supplies v0 and each later one gets a lambda. fla is imported lazily
+  (Triton/CUDA), so CPU code paths without GDN layers never need it.
 """
 import torch
 import torch.nn as nn
@@ -101,6 +106,29 @@ class MLP(nn.Module):
         return self.w_down(F.relu(self.w_up(x)).square())
 
 
+def gdn_mixer(cfg: ModelConfig) -> nn.Module:
+    from fla.layers import GatedDeltaNet  # lazy: needs triton + CUDA at run time
+    return GatedDeltaNet(hidden_size=cfg.d_model, expand_v=cfg.gdn_expand_v,
+                         head_dim=cfg.gdn_head_dim, num_heads=cfg.gdn_heads, mode="chunk",
+                         use_gate=True, use_short_conv=True, conv_size=4, norm_eps=NORM_EPS)
+
+
+class GDNBlock(nn.Module):
+    """Same pre-norm block as Block with a GatedDeltaNet mixer in place of attention."""
+
+    def __init__(self, cfg: ModelConfig):
+        super().__init__()
+        self.norm1 = nn.RMSNorm(cfg.d_model, eps=NORM_EPS)
+        self.gdn = gdn_mixer(cfg)
+        self.norm2 = nn.RMSNorm(cfg.d_model, eps=NORM_EPS)
+        self.mlp = MLP(cfg)
+
+    def forward(self, x, cos, sin, v0=None, vres_lam=None, xsa_alpha=None):
+        # Traced by torch.compile as is: 385k tok/s vs 351k with torch.compiler.disable here.
+        x = x + self.gdn(self.norm1(x))[0]  # fla returns (o, attn_weights=None, cache)
+        return x + self.mlp(self.norm2(x)), None
+
+
 class Block(nn.Module):
     def __init__(self, cfg: ModelConfig):
         super().__init__()
@@ -121,12 +149,16 @@ class GPT(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.wte = nn.Embedding(cfg.vocab, cfg.d_model)  # input embedding and output head
-        self.blocks = nn.ModuleList(Block(cfg) for _ in range(cfg.n_unique_blocks))
+        if cfg.gdn_layers and cfg.repeats != 1:
+            raise ValueError("gdn_layers needs repeats == 1")
+        self.attn_layers = [i for i in range(cfg.n_eff) if i not in cfg.gdn_layers]
+        self.blocks = nn.ModuleList(GDNBlock(cfg) if i in cfg.gdn_layers else Block(cfg)
+                                    for i in range(cfg.n_unique_blocks))
         self.skip_w = nn.Parameter(torch.full((cfg.n_eff // 2,), SKIP_INIT))
         if cfg.xsa:  # flat [n_eff * n_head] so it stays 1-D; row l is effective layer l
             self.xsa_alpha = nn.Parameter(torch.zeros(cfg.n_eff * cfg.n_head))
-        if cfg.value_residual:  # entry l-1 is effective layer l (layer 0 has none)
-            self.vres_lambda = nn.Parameter(torch.full((cfg.n_eff - 1,), VRES_INIT))
+        if cfg.value_residual:  # entry j-1 is the j-th attention layer (the first has none)
+            self.vres_lambda = nn.Parameter(torch.full((len(self.attn_layers) - 1,), VRES_INIT))
         self.norm_f = nn.RMSNorm(cfg.d_model, eps=NORM_EPS)
         cos, sin = rope_tables(cfg.ctx, cfg.head_dim, cfg.rope_base)
         self.register_buffer("rope_cos", cos, persistent=False)
@@ -136,23 +168,30 @@ class GPT(nn.Module):
     def _init_weights(self):
         nn.init.normal_(self.wte.weight, std=EMBED_STD)
         for block in self.blocks:
-            for lin in (block.attn.wq, block.attn.wk, block.attn.wv, block.mlp.w_up):
+            if isinstance(block, GDNBlock):  # same scheme: normal input projections, zero output
+                g = block.gdn
+                ins, out = (g.q_proj, g.k_proj, g.v_proj, g.g_proj, g.a_proj, g.b_proj), g.o_proj
+            else:
+                ins, out = (block.attn.wq, block.attn.wk, block.attn.wv), block.attn.wo
+            for lin in (*ins, block.mlp.w_up):
                 nn.init.normal_(lin.weight, std=LINEAR_STD)
-            nn.init.zeros_(block.attn.wo.weight)
+            nn.init.zeros_(out.weight)
             nn.init.zeros_(block.mlp.w_down.weight)
 
     def forward(self, idx: torch.Tensor, targets: torch.Tensor | None = None):
         x = self.wte(idx)
         n_eff, n_skip = self.cfg.n_eff, self.skip_w.numel()
         stack, v0 = [], None
+        vres_idx = {layer: j - 1 for j, layer in enumerate(self.attn_layers) if j > 0}
         xsa = self.xsa_alpha.view(n_eff, -1) if self.cfg.xsa else None
         for layer in range(n_eff):
             if layer >= n_eff - n_skip:  # decoder half: pair with layer n_eff-1-layer
                 x = x + self.skip_w[layer - (n_eff - n_skip)] * stack.pop()
-            lam = self.vres_lambda[layer - 1] if self.cfg.value_residual and layer > 0 else None
+            lam = (self.vres_lambda[vres_idx[layer]]
+                   if self.cfg.value_residual and layer in vres_idx else None)
             x, v = self.blocks[layer // self.cfg.repeats](
                 x, self.rope_cos, self.rope_sin, v0, lam, None if xsa is None else xsa[layer])
-            if layer == 0:
+            if layer == self.attn_layers[0]:
                 v0 = v
             if layer < n_skip:  # encoder half
                 stack.append(x)
