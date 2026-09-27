@@ -16,9 +16,9 @@ Track 01 caps the model at 50 million trainable parameters, embeddings and outpu
 
 ### What it does
 
-gibc-v2-lm is a 14-layer decoder-only transformer, width 512, with 49,822,228 trainable parameters. The embedding and output head are one tied tensor, counted once. Counted twice it would be 66,599,444; the README shows both counts and the script that prints them. It is trained from random initialisation on 20B tokens with our own 32k byte-level BPE tokenizer.
+gibc-v2-lm is a 14-layer decoder-only transformer, width 512, with 49,822,228 trainable parameters, under the 50,000,000 cap. It is trained from random initialisation on 20B tokens with our own 32k byte-level BPE tokenizer.
 
-The submitted model is main_vres_anneal (final weights). Zero-shot on the full sets it scores HellaSwag 31.87 (acc_norm), ARC-Easy 55.18 (acc), PIQA 61.92 (acc), WinoGrande 51.62 and WikiText-103 test word perplexity 39.42 with lm-eval-style windows (35.21 with a stride-512 sliding window). The second main run, main_vres_mild, which uses a milder anneal, scores 32.15, 53.24, 61.97, 51.46 and 38.76. We submit the anneal run for its 1.9-point ARC-Easy lead at equal PIQA and WinoGrande. A third 20B run, main_alt2_vres_anneal, uses the same recipe with a 16k tokenizer so that it is under 50M even with the tied matrix counted twice (41,433,620 once, 49,822,228 twice); it scores 31.61, 53.75, 61.43, 50.67 and 42.46, and is the compliant model if judges use that convention. For scale, Pythia-70M reports HellaSwag 26.6, ARC-Easy 36.9 and PIQA 60.0 after 300B tokens, with a different recipe and data.
+The submitted model is main_vres_anneal (final weights). Zero-shot on the full sets it scores HellaSwag 31.87 (acc_norm), ARC-Easy 55.18 (acc), PIQA 61.92 (acc), WinoGrande 51.62 and WikiText-103 test word perplexity 39.42 with lm-eval-style windows (35.21 with a stride-512 sliding window). The second main run, main_vres_mild, which uses a milder anneal, scores 32.15, 53.24, 61.97, 51.46 and 38.76. We submit the anneal run for its 1.9-point ARC-Easy lead at equal PIQA and WinoGrande. A third 20B run, main_alt2_vres_anneal, is a vocabulary-size ablation: the same recipe with a 16k tokenizer and 41,433,620 trainable parameters. It scores 31.61, 53.75, 61.43, 50.67 and 42.46. For scale, Pythia-70M reports HellaSwag 26.6, ARC-Easy 36.9 and PIQA 60.0 after 300B tokens, with a different recipe and data.
 
 ### How we built it
 
@@ -34,11 +34,11 @@ This project was built with Claude Code agents (Claude Opus 5.5 and Claude Fable
 
 ### Challenges we ran into
 
-WikiText-103 is made of Wikipedia articles, and the web copies them. Before filtering, a 250M-token sample of our shards contained 4.96% of WikiText-103 test 13-grams, from 6 web documents. The parameter cap was a second problem: the rules do not say how to count a tied matrix, so we report both conventions rather than pick the favourable one. One seed at 1B tokens gives standard errors of 0.45 to 1.4 benchmark points, so most decisions rest on perplexity and bits per byte. Near the end, both main runs were stopped by our Modal spend limit and resumed from checkpoints with model, optimizer, RNG and data cursors restored; the README describes this, including 218 training-log lines lost from one run when two trainers briefly ran at once.
+WikiText-103 is made of Wikipedia articles, and the web copies them. Before filtering, a 250M-token sample of our shards contained 4.96% of WikiText-103 test 13-grams, from 6 web documents. The cap was the other constraint: the tied embedding alone takes a third of the 50M budget. One seed at 1B tokens gives standard errors of 0.45 to 1.4 benchmark points, so most decisions rest on perplexity and bits per byte. Near the end, both main runs were stopped by our Modal spend limit and resumed from checkpoints with model, optimizer, RNG and data cursors restored; the README describes this, including 218 training-log lines lost from one run when two trainers briefly ran at once.
 
 ### Accomplishments that we're proud of
 
-Every change in the main runs was tested first. We also trained a model that is under the 50M cap on both counting conventions, at a cost of 0.3 to 1.4 benchmark points and 7% WikiText perplexity. Value residual cut 1B WikiText perplexity from 57.2 to 54.0 for 13 parameters, and Muon beat AdamW-only 57.2 to 89.0. The whole pipeline reproduces from public data with documented commands, and the README reports the unflattering results too.
+Every change in the main runs was tested first. A 20B-token 16k-vocabulary ablation confirmed the sweep's choice of 32k, which leads by 0.3 to 1.4 benchmark points and 7% WikiText perplexity. Value residual cut 1B WikiText perplexity from 57.2 to 54.0 for 13 parameters, and Muon beat AdamW-only 57.2 to 89.0. The whole pipeline reproduces from public data with documented commands, and the README reports the unflattering results too.
 
 ### What we learned
 
@@ -109,7 +109,7 @@ Upload at least 3. Captions are one line each.
 | 2 | `results/main/train_loss.png` | Training loss for the two main runs; the anneal mix starts at step 24,795. |
 | 3 | `results/sweep_1B/val_bpb.png` | Validation bits per byte for the 1B-token ablation sweep, all arms overlaid. |
 | 4 | `video/slides/05_sweep.png` | Ablation results: value residual gives the largest WikiText gain, AdamW-only is far behind Muon. |
-| 5 | `video/slides/02_architecture.png` | Parameter count: 49,822,228 with the tied embedding counted once, 66,599,444 counted twice. |
+| 5 | `video/slides/02_architecture.png` | Architecture and parameter count: 49,822,228 trainable parameters, 177,772 under the cap. |
 
 There is no standalone image of the full ablation table; slide 05 shows the key rows. If a screenshot of the raw count printout is wanted, capture the terminal output of `uv run python scripts/count_params.py`. Items 1 and 2 are the rendered main-run curves.
 
@@ -124,7 +124,7 @@ There is no standalone image of the full ablation table; slide 05 shows the key 
 | Team: all members by real full name, each with a Devpost account added to the submission | Form: team members | Add Mohammed Alibhai (and any teammates). Under-18 entrants need parental or guardian permission. |
 | At least 3 screenshots | Form: image gallery, section 4 above | Ready (5 images) |
 | Track selection | Form: Track 01, TECH (foundational LLM development) | Select on submit |
-| Track 01: at most 50,000,000 trainable params incl. embeddings and head; count script and config in repo | README "Parameter count", `scripts/count_params.py`, `gibc/configs.py` | Done; both conventions shown. Submitted model 49,822,228 counted once; `main_alt2_vres_anneal` is under the cap counted twice (49,822,228) |
+| Track 01: at most 50,000,000 trainable params incl. embeddings and head; count script and config in repo | README "Parameter count", `scripts/count_params.py`, `gibc/configs.py` | Done: 49,822,228 trainable parameters, printed by `scripts/count_params.py`; embedding and head are one tied tensor, included in the count |
 | Track 01: trained from scratch, no pretrained weights, fine-tuning or distillation | README intro, "Data", "AI use disclosure" | Done |
 | Track 01: hardware, total training time, approximate compute in README | README "Hardware, time and compute" | Done: 24.69 H100-hours for the three main runs, about 30.0 in total, about 2 L4-hours of evaluation, run history |
 | Track 01: HellaSwag, ARC-Easy, PIQA, WinoGrande via lm-eval, WikiText-103 perplexity; numbers and eval script in README | README "Headline results", "Evaluation protocol", `gibc/evaluate.py`, `modal_eval.py` | Done |

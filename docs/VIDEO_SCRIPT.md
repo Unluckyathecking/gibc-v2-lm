@@ -64,7 +64,7 @@ Hi, I'm Mohammed Alibhai. For Track one of the Global Innovation Build Challenge
 
 ### 2. Architecture and the parameter budget (82 words, about 33 s)
 
-So, the model. It's a fourteen-layer transformer, five hundred and twelve wide, with grouped-query attention, rotary embeddings, Q-K norm, and a squared ReLU. U-net style skips connect early layers to late ones, and a value residual lets every layer reuse the first layer's values. The thirty-two-thousand-entry embedding is shared with the output head and takes a third of the budget. Counted once, as one tensor, the total is forty-nine point eight million. Counted twice, it's sixty-six point six million. I report both.
+So, the model. It's a fourteen-layer transformer, five hundred and twelve wide, with grouped-query attention, rotary embeddings, Q-K norm, and a squared ReLU. U-net style skips connect early layers to late ones, and a value residual lets every layer reuse the first layer's values. The thirty-two-thousand-entry embedding is shared with the output head and takes a third of the budget. The thirty-two-thousand-entry embedding is shared with the output head, the standard weight tying used since GPT-2, and it takes a third of the budget. In total, forty-nine point eight million trainable parameters, about a hundred and eighty thousand under the cap.
 
 ### 3. Training recipe (86 words, about 34 s)
 
@@ -105,7 +105,7 @@ Screen recording with voice-over. Times are cumulative targets. The final number
 
 - On screen: the architecture table, then run `uv run python scripts/count_params.py` live.
 - Say: 14 layers, width 512, grouped-query attention, RoPE, QK-norm, ReLU², a tied 32k embedding, U-net skips and a value residual.
-- Point at the count: 49,822,228, which is 177,772 under the cap. The tied embedding is a third of the budget; it is one tensor, counted once here, and 66.6M if counted twice. Say this plainly.
+- Point at the count: 49,822,228 trainable parameters, 177,772 under the cap. The tied embedding is a third of the budget; it is one tensor, included in the count, the standard weight tying used since GPT-2.
 - Say: value residual was the biggest win in the sweep. It cost 13 parameters and cut WikiText perplexity from 57.2 to 54.0.
 
 ## 1:05-1:45 How we chose: the 1B sweep

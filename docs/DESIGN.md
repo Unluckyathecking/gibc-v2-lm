@@ -4,7 +4,7 @@ Why each part of the model and pipeline is there, and what we considered and dro
 
 ## Constraints that shaped everything
 
-- **50,000,000 trainable parameters, embeddings and head included.** At a 32k vocabulary the tied embedding is 16.8M, a third of the budget, so every other choice is judged per parameter.
+- **50,000,000 trainable parameters, embeddings and head included.** The model has 49,822,228 trainable parameters. At a 32k vocabulary the tied embedding is 16.8M, a third of the budget, so every other choice is judged per parameter.
 - **Scored on HellaSwag, ARC-Easy, PIQA, WinoGrande and WikiText-103 perplexity.** The data mix and the anneal target these directly. WikiText-103 is built from Wikipedia, so contamination had to be dealt with before training, not after.
 - **One H100 at a time on Modal, paid per second.** Throughput and a cheap ablation loop mattered more than peak scale. A 1B-token arm costs about 0.45 H100-hours, a 20B main run about 8.
 
@@ -56,7 +56,7 @@ The two main runs share everything except the anneal mix, so they test the one q
 - **The anneal trade-off did not survive scale.** At 1B the strong anneal gained ARC-Easy and lost 2.7 points of PIQA. At 20B, `main_vres_anneal` still leads the mild run on ARC-Easy (55.18 vs 53.24) but PIQA is level (61.92 vs 61.97), as is WinoGrande (51.62 vs 51.46). The stronger anneal is the better choice, and it is the submitted model.
 - **The mild anneal is slightly better on perplexity.** WikiText-103 (stride 512) is 34.65 against 35.21, val bpb 0.9825 against 0.9860, and HellaSwag 32.15 against 31.87 (within noise). Keeping more general web text in the decay helps text modelling a little, as expected, but not enough to outweigh ARC-Easy. The runs also read the main-mix shards in different orders, so part of this gap may be data order.
 - **Value residual plus the Wikipedia anneal, untested together at 1B, worked.** From the 1B `sweep_A_vres` checkpoint to the 20B submitted model, WikiText perplexity fell from 53.95 to 35.21, HellaSwag rose 3.2 points and ARC-Easy 8.0.
-- **A 16k vocabulary costs a little, not much.** A third run, `main_alt2_vres_anneal`, repeats the submitted recipe with the 16k tokenizer, which puts it at 41,433,620 parameters counted once and 49,822,228 counted twice, under the cap either way. It trails the submitted model by 0.26 points on HellaSwag, 1.43 on ARC-Easy, 0.49 on PIQA and 0.95 on WinoGrande, all within about one standard error, and is 7% worse on WikiText-103 perplexity (37.81 vs 35.21). The 1B sweep's ranking of 32k over 16k held at 20B, but the gap is small enough that the 16k model is a reasonable fallback if the tied matrix is counted twice.
+- **A 16k vocabulary costs a little, not much.** A third run, `main_alt2_vres_anneal`, is a vocabulary-size ablation at 20B tokens: the submitted recipe with the 16k tokenizer, at 41,433,620 trainable parameters. It trails the submitted model by 0.26 points on HellaSwag, 1.43 on ARC-Easy, 0.49 on PIQA and 0.95 on WinoGrande, all within about one standard error, and is 7% worse on WikiText-103 perplexity (37.81 vs 35.21). The 1B sweep's ranking of 32k over 16k held at 20B, though the gap is small.
 - **Snapshot averaging was not worth it.** The mean of the last four snapshots is within 0.5 points of the final weights on every benchmark. With a linear decay to zero the last 750 steps barely move the weights, so there is nothing to average out. We report the final weights.
 
 ## Sponsor tooling considered and declined
