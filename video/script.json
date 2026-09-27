@@ -70,7 +70,7 @@
     },
     {
       "id": "architecture",
-      "narration": "So, the model. It's a fourteen-layer transformer, five hundred and twelve wide, with grouped-query attention, rotary embeddings, Q-K norm, and a squared ReLU. U-net style skips connect early layers to late ones, and a value residual lets every layer reuse the first layer's values. The thirty-two-thousand-entry embedding is shared with the output head and takes a third of the budget. Counted once, as one tensor, the total is forty-nine point eight million. Counted twice, it's sixty-six point six million. I report both.",
+      "narration": "So, the model. It's a fourteen-layer transformer, five hundred and twelve wide, with grouped-query attention, rotary embeddings, Q-K norm, and a squared ReLU. U-net style skips connect early layers to late ones, and a value residual lets every layer reuse the first layer's values. The thirty-two-thousand-entry embedding is shared with the output head, the standard weight tying used since GPT-2, and it takes a third of the budget. In total, forty-nine point eight million trainable parameters, about a hundred and eighty thousand under the cap.",
       "slide": {
         "kicker": "Architecture",
         "title": "14 layers, width 512, tied 32k embedding",
@@ -114,12 +114,8 @@
                     "532"
                   ],
                   [
-                    "Total, tied counted once",
+                    "Total trainable parameters",
                     "49,822,228"
-                  ],
-                  [
-                    "Tied matrix counted twice",
-                    "66,599,444"
                   ]
                 ],
                 "align": "lr",
@@ -130,7 +126,7 @@
               }
             },
             {
-              "note": "177,772 under the cap on the counted-once convention. Both conventions are reported in the README."
+              "note": "177,772 under the 50,000,000 cap. The embedding and output head are one tied tensor, included in the count (scripts/count_params.py)."
             }
           ]
         ],
