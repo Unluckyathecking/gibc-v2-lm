@@ -96,6 +96,9 @@ class ModelConfig:
     tokenizer: str = "tok32k"
     xsa: bool = False             # Exclusive Self Attention with a learned gate per layer and head (+n_eff*n_head)
     value_residual: bool = False  # blend each layer's V with layer 1's V via a learned scalar per layer (+n_eff-1)
+    embed_dim: int = 0            # >0: factorised tied embedding E [vocab, embed_dim] + projection P [d_model, embed_dim]
+    ternary: bool = False         # BitNet b1.58 QAT on the block matrices (ternary weights, 8-bit activations)
+    ternary_act8: bool = True     # with ternary: also quantise each block matrix's input to 8 bits per token
 
     @property
     def n_eff(self) -> int:
@@ -122,6 +125,14 @@ MODEL_CONFIGS["A_xsa"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "xsa": Tr
 MODEL_CONFIGS["A_vres"] = ModelConfig(**{**MODEL_CONFIGS["A"].__dict__, "value_residual": True})
 # 16k-vocab twin of A_vres: 41,433,620 once / 49,822,228 twice, under the cap on both conventions.
 MODEL_CONFIGS["alt2_vres"] = ModelConfig(**{**MODEL_CONFIGS["alt2"].__dict__, "value_residual": True})
+# Cap-lever arms (explore/cap-levers). Integer layer counts alone leave the factorised arms
+# below 49.3M, so the remaining slack goes into MLP width (multiple of 32):
+# fact128 = 19 layers, mlp 1568: 49,729,051; fact256 = 17 layers, mlp 1600: 49,759,768.
+MODEL_CONFIGS["fact128"] = ModelConfig(**{**MODEL_CONFIGS["A_vres"].__dict__, "embed_dim": 128,
+                                          "n_unique_blocks": 19, "mlp_hidden": 1568})
+MODEL_CONFIGS["fact256"] = ModelConfig(**{**MODEL_CONFIGS["A_vres"].__dict__, "embed_dim": 256,
+                                          "n_unique_blocks": 17, "mlp_hidden": 1600})
+MODEL_CONFIGS["ternary"] = ModelConfig(**{**MODEL_CONFIGS["A_vres"].__dict__, "ternary": True})  # 49,822,228
 PARAM_CAP = 50_000_000
 
 
@@ -181,9 +192,14 @@ RUNS = {
     # Insurance run: same recipe as main_vres_anneal with the 16k vocabulary, in case tied
     # embeddings are counted twice toward the cap.
     "main_alt2_vres_anneal": TrainConfig("alt2_vres", 20_000_000_000, mix_anneal=dict(MIX_ANNEAL_WIKI)),
+    # Cap-lever arms: same recipe as sweep_A_vres, different use of the parameter budget.
+    "sweep_fact128": TrainConfig("fact128", SWEEP_TOKENS),
+    "sweep_fact256": TrainConfig("fact256", SWEEP_TOKENS),
+    "sweep_ternary": TrainConfig("ternary", SWEEP_TOKENS),
 }
 MAIN_RUNS = [name for name in RUNS if name.startswith("main_")]
-SWEEP_RUNS = [name for name in RUNS if name.startswith("sweep_")]
+LEVER_RUNS = ["sweep_fact128", "sweep_fact256", "sweep_ternary"]  # launched by name, not with "sweep"
+SWEEP_RUNS = [name for name in RUNS if name.startswith("sweep_") and name not in LEVER_RUNS]
 
 # --- Evaluation --------------------------------------------------------------
 LM_EVAL_TASKS = ["hellaswag", "arc_easy", "piqa", "winogrande"]

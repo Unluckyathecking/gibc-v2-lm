@@ -12,6 +12,13 @@ Opt-in (both off by default; off leaves the state_dict and outputs unchanged):
   V (after Wv; V has no RoPE) is kept; each later effective layer l attends with
   lam_l * v_l + (1 - lam_l) * v_0, lam_l init 0.5. Layer 0 is unchanged: n_eff - 1 scalars.
 Both sets of scalars live on GPT (not in blocks), 1-D, so optim.split_params sends them to AdamW.
+- cfg.embed_dim > 0: ALBERT-style factorised tied embedding. E = wte [vocab, embed_dim],
+  P = embed_proj [d_model, embed_dim]. Input x = P e; logits = (norm_f(h) @ P) @ E^T, so E and P
+  are each one tensor used both ways. P is a 2-D matrix routed to Muon; E goes to AdamW.
+- cfg.ternary: BitNet b1.58 QAT. Every block matrix (Wq, Wk, Wv, Wo, W_up, W_down) keeps a
+  latent weight but the forward uses absmean-scaled ternary weights (per-tensor scale) and,
+  with cfg.ternary_act8, absmax 8-bit activations per token; straight-through gradients.
+  Embedding, P, norms and scalars stay full precision.
 """
 import torch
 import torch.nn as nn
@@ -28,6 +35,45 @@ NORM_EPS = 1e-6  # explicit: the bf16 default eps (7.8e-3) would swamp small act
 SKIP_INIT = 1.0  # as in modded-nanogpt; zero-init Wo/W_down already make init a no-op stack
 XSA_EPS = 1e-4   # F.normalize eps on v, as in modded-nanogpt record #82
 VRES_INIT = 0.5  # value-residual mix: equal weight on own V and layer-0 V
+
+
+QUANT_EPS = 1e-5  # floor on the absmean / absmax scales (zero-init Wo, W_down start at 0)
+
+
+def ste(x: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
+    """Forward q, backward identity to x (straight-through estimator)."""
+    return x + (q - x).detach()
+
+
+def ternary_weight(w: torch.Tensor) -> torch.Tensor:
+    """BitNet b1.58: round(w / mean|w|) clipped to {-1, 0, 1}, times mean|w|."""
+    scale = w.abs().mean().clamp(min=QUANT_EPS)
+    return (w / scale).round().clamp(-1, 1) * scale
+
+
+def act_quant8(x: torch.Tensor) -> torch.Tensor:
+    """Absmax 8-bit fake quantisation per token (last dim), as in BitNet."""
+    scale = 127.0 / x.abs().amax(dim=-1, keepdim=True).clamp(min=QUANT_EPS)
+    return (x * scale).round().clamp(-128, 127) / scale
+
+
+class BitLinear(nn.Linear):
+    """nn.Linear (no bias) whose forward uses ternary weights; same parameters and state_dict."""
+
+    def __init__(self, in_features: int, out_features: int, bias: bool = False, act8: bool = True):
+        super().__init__(in_features, out_features, bias=bias)
+        self.act8 = act8
+
+    def forward(self, x):
+        if self.act8:
+            x = ste(x, act_quant8(x))
+        return F.linear(x, ste(self.weight, ternary_weight(self.weight)), self.bias)
+
+
+def linear_cls(cfg: ModelConfig):
+    if not cfg.ternary:
+        return nn.Linear
+    return lambda i, o, bias=False: BitLinear(i, o, bias, act8=cfg.ternary_act8)
 
 
 def rope_tables(ctx: int, head_dim: int, base: float) -> tuple[torch.Tensor, torch.Tensor]:
@@ -51,10 +97,11 @@ class Attention(nn.Module):
         super().__init__()
         self.n_head, self.n_kv_head, self.head_dim = cfg.n_head, cfg.n_kv_head, cfg.head_dim
         kv_dim = cfg.n_kv_head * cfg.head_dim
-        self.wq = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
-        self.wk = nn.Linear(cfg.d_model, kv_dim, bias=False)
-        self.wv = nn.Linear(cfg.d_model, kv_dim, bias=False)
-        self.wo = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
+        linear = linear_cls(cfg)
+        self.wq = linear(cfg.d_model, cfg.d_model, bias=False)
+        self.wk = linear(cfg.d_model, kv_dim, bias=False)
+        self.wv = linear(cfg.d_model, kv_dim, bias=False)
+        self.wo = linear(cfg.d_model, cfg.d_model, bias=False)
 
     def forward(self, x, cos, sin, v0=None, vres_lam=None, xsa_alpha=None):
         """Returns (output, this layer's raw V [B, T, n_kv_head, hd]).
@@ -94,8 +141,9 @@ class Attention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, cfg: ModelConfig):
         super().__init__()
-        self.w_up = nn.Linear(cfg.d_model, cfg.mlp_hidden, bias=False)
-        self.w_down = nn.Linear(cfg.mlp_hidden, cfg.d_model, bias=False)
+        linear = linear_cls(cfg)
+        self.w_up = linear(cfg.d_model, cfg.mlp_hidden, bias=False)
+        self.w_down = linear(cfg.mlp_hidden, cfg.d_model, bias=False)
 
     def forward(self, x):
         return self.w_down(F.relu(self.w_up(x)).square())
@@ -120,7 +168,10 @@ class GPT(nn.Module):
     def __init__(self, cfg: ModelConfig):
         super().__init__()
         self.cfg = cfg
-        self.wte = nn.Embedding(cfg.vocab, cfg.d_model)  # input embedding and output head
+        # input embedding and output head (with embed_dim, factorised through embed_proj)
+        self.wte = nn.Embedding(cfg.vocab, cfg.embed_dim or cfg.d_model)
+        if cfg.embed_dim:
+            self.embed_proj = nn.Linear(cfg.embed_dim, cfg.d_model, bias=False)
         self.blocks = nn.ModuleList(Block(cfg) for _ in range(cfg.n_unique_blocks))
         self.skip_w = nn.Parameter(torch.full((cfg.n_eff // 2,), SKIP_INIT))
         if cfg.xsa:  # flat [n_eff * n_head] so it stays 1-D; row l is effective layer l
@@ -135,6 +186,8 @@ class GPT(nn.Module):
 
     def _init_weights(self):
         nn.init.normal_(self.wte.weight, std=EMBED_STD)
+        if self.cfg.embed_dim:
+            nn.init.normal_(self.embed_proj.weight, std=LINEAR_STD)
         for block in self.blocks:
             for lin in (block.attn.wq, block.attn.wk, block.attn.wv, block.mlp.w_up):
                 nn.init.normal_(lin.weight, std=LINEAR_STD)
@@ -143,6 +196,8 @@ class GPT(nn.Module):
 
     def forward(self, idx: torch.Tensor, targets: torch.Tensor | None = None):
         x = self.wte(idx)
+        if self.cfg.embed_dim:
+            x = self.embed_proj(x)
         n_eff, n_skip = self.cfg.n_eff, self.skip_w.numel()
         stack, v0 = [], None
         xsa = self.xsa_alpha.view(n_eff, -1) if self.cfg.xsa else None
@@ -156,7 +211,10 @@ class GPT(nn.Module):
                 v0 = v
             if layer < n_skip:  # encoder half
                 stack.append(x)
-        logits = self.norm_f(x) @ self.wte.weight.T
+        h = self.norm_f(x)
+        if self.cfg.embed_dim:
+            h = h @ self.embed_proj.weight  # d_model -> embed_dim, the transpose of the input path
+        logits = h @ self.wte.weight.T
         logits = self.cfg.softcap * torch.tanh(logits.float() / self.cfg.softcap)
         if targets is None:
             return logits
@@ -164,10 +222,13 @@ class GPT(nn.Module):
 
 
 def count_params(cfg: ModelConfig) -> dict[str, int]:
-    """Unique parameter counts; "twice" counts the tied embedding as input + head."""
+    """Unique parameter counts; "twice" counts the tied embedding as input + head.
+    With embed_dim, "embedding" is E plus P (both are used on the input and the output side)."""
     with torch.device("meta"):
         model = GPT(cfg)
     once = sum(p.numel() for p in model.parameters())
     embedding = model.wte.weight.numel()
+    if cfg.embed_dim:
+        embedding += model.embed_proj.weight.numel()
     return {"once": once, "twice": once + embedding,
             "embedding": embedding, "non_embedding": once - embedding}

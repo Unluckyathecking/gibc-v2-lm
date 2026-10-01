@@ -10,8 +10,11 @@ from gibc.configs import TrainConfig
 
 
 def split_params(model: nn.Module) -> tuple[list, list]:
-    """(2D matrices inside blocks, everything else: embedding, norm weights, skip scalars)."""
+    """(2D matrices inside blocks plus the factorised-embedding projection P if present,
+    everything else: embedding, norm weights, skip scalars)."""
     matrices = [p for p in model.blocks.parameters() if p.ndim == 2]
+    if hasattr(model, "embed_proj"):
+        matrices.append(model.embed_proj.weight)
     matrix_ids = {id(p) for p in matrices}
     others = [p for p in model.parameters() if id(p) not in matrix_ids]
     return matrices, others
