@@ -10,7 +10,7 @@ Everything in this repository was written by AI coding agents under human direct
 
 ## Headline results
 
-Final numbers for the three 20B-token main runs, final weights (after the last step). Accuracies are in percent.
+Final numbers for the three 20B-token main runs, final weights (after the last step). Accuracies are in percent. All three models are pretraining-only: no fine-tuning stage of any kind, and no benchmark data (train, validation or test splits of HellaSwag, ARC, PIQA or WinoGrande) in training. Every score is zero-shot.
 
 | | **main_vres_anneal** (submitted) | main_vres_mild | main_alt2_vres_anneal (16k vocab) |
 |---|---|---|---|

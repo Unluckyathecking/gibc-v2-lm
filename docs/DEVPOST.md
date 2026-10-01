@@ -16,7 +16,7 @@ Track 01 caps the model at 50 million trainable parameters, embeddings and outpu
 
 ### What it does
 
-gibc-v2-lm is a 14-layer decoder-only transformer, width 512, with 49,822,228 trainable parameters, under the 50,000,000 cap. It is trained from random initialisation on 20B tokens with our own 32k byte-level BPE tokenizer.
+gibc-v2-lm is a 14-layer decoder-only transformer, width 512, with 49,822,228 trainable parameters, under the 50,000,000 cap. It is trained from random initialisation on 20B tokens with our own 32k byte-level BPE tokenizer, pretraining only: no fine-tuning stage and no benchmark data of any kind in training. All scores are zero-shot.
 
 The submitted model is main_vres_anneal (final weights). Zero-shot on the full sets it scores HellaSwag 31.87 (acc_norm), ARC-Easy 55.18 (acc), PIQA 61.92 (acc), WinoGrande 51.62 and WikiText-103 test word perplexity 39.42 with lm-eval-style windows (35.21 with a stride-512 sliding window). The second main run, main_vres_mild, which uses a milder anneal, scores 32.15, 53.24, 61.97, 51.46 and 38.76. We submit the anneal run for its 1.9-point ARC-Easy lead at equal PIQA and WinoGrande. A third 20B run, main_alt2_vres_anneal, is a vocabulary-size ablation: the same recipe with a 16k tokenizer and 41,433,620 trainable parameters. It scores 31.61, 53.75, 61.43, 50.67 and 42.46. For scale, Pythia-70M reports HellaSwag 26.6, ARC-Easy 36.9 and PIQA 60.0 after 300B tokens, with a different recipe and data.
 
