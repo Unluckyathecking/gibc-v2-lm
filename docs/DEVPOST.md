@@ -10,6 +10,30 @@ Everything to paste into the Devpost form for GIBC V2, Track 01. The numbers mat
 
 ## 2. About the project
 
+Paste in this order: the Headline results block, then the links, then the sections below.
+
+```markdown
+## Headline results
+
+**Submitted model:** `main_vres_anneal`, 49,822,228 trainable parameters, trained from scratch on 20B tokens, one NVIDIA H100, 8.58 GPU-hours. Pretraining only: no fine-tuning stage, no benchmark data of any kind in training. All scores zero-shot on the full evaluation sets, lm-evaluation-harness 0.4.13.
+
+| Benchmark | Score |
+|---|---|
+| HellaSwag (acc_norm) | **31.87** |
+| ARC-Easy (acc) | **55.18** |
+| PIQA (acc) | **61.92** |
+| WinoGrande (acc) | 51.62 |
+| WikiText-103 test word perplexity (lm-eval-style windows) | **39.42** |
+| WikiText-103 test word perplexity (stride-512 sliding window) | 35.21 |
+
+**Reference:** Pythia-70M (300B tokens) reports HellaSwag 26.6, ARC-Easy 36.9, PIQA 60.0.
+
+**Methods:** Muon + AdamW, warmup-stable-decay, quality anneal on curated data for the last 35%, ResFormer value residual, grouped-query attention, RoPE, QK-norm, ReLU², U-net skips, logit softcap, tied 32k BPE embedding. Every choice tested first in a 12-arm, 1B-token ablation sweep. Training data decontaminated against WikiText-103 (4,969 documents dropped); benchmark overlap measured and reported.
+
+**Code and full write-up:** https://github.com/Unluckyathecking/gibc-v2-lm
+**Demo video:** https://youtu.be/rbA6RGoDeYU
+```
+
 ### Inspiration
 
 Track 01 caps the model at 50 million trainable parameters, embeddings and output head included. With a 32k vocabulary the embedding alone costs 16.8M, a third of the budget. We wanted to see how much a single rented H100 and the modded-nanogpt speedrun techniques could get out of the remaining two thirds, and to report every number plainly, including the ones that argue against our choices.
