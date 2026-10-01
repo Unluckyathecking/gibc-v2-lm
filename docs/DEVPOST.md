@@ -15,7 +15,9 @@ Paste in this order: the Headline results block, then the links, then the sectio
 ```markdown
 ## Headline results
 
-**Submitted model:** `main_vres_anneal`, 49,822,228 trainable parameters, trained from scratch on 20B tokens, one NVIDIA H100, 8.58 GPU-hours. Pretraining only: no fine-tuning stage, no benchmark data of any kind in training. All scores zero-shot on the full evaluation sets, lm-evaluation-harness 0.4.13.
+**No training on any benchmark.** HellaSwag, ARC, PIQA and WinoGrande data (train, validation or test) never entered training, and there is no fine-tuning stage of any kind. Every score below is zero-shot on the full evaluation set, lm-evaluation-harness 0.4.13.
+
+**Submitted model:** `main_vres_anneal`, 49,822,228 trainable parameters, trained from scratch on 20B tokens, one NVIDIA H100, 8.58 GPU-hours.
 
 | Benchmark | Score |
 |---|---|
