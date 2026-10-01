@@ -1,0 +1,20 @@
+{
+  "model": "ternary",
+  "device": "NVIDIA H100 80GB HBM3",
+  "params": {
+    "once": 49822228,
+    "twice": 66599444,
+    "embedding": 16777216,
+    "non_embedding": 33045012
+  },
+  "micro_bsz": 64,
+  "grad_accum": 8,
+  "ctx": 1024,
+  "compile_s": 64.2,
+  "steps": 87,
+  "tok_per_s": 810320,
+  "step_s": 0.647,
+  "loss": 10.401005744934082,
+  "loss_finite": true,
+  "peak_mem_gb": 22.26
+}

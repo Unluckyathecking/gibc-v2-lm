@@ -1,0 +1,20 @@
+{
+  "model": "fact128",
+  "device": "NVIDIA H100 80GB HBM3",
+  "params": {
+    "once": 49729051,
+    "twice": 53988891,
+    "embedding": 4259840,
+    "non_embedding": 45469211
+  },
+  "micro_bsz": 64,
+  "grad_accum": 8,
+  "ctx": 1024,
+  "compile_s": 54.5,
+  "steps": 91,
+  "tok_per_s": 723749,
+  "step_s": 0.7244,
+  "loss": 10.397660255432129,
+  "loss_finite": true,
+  "peak_mem_gb": 24.78
+}
