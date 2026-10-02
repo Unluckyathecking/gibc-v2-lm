@@ -48,7 +48,7 @@ The submitted model is main_vres_anneal (final weights). Zero-shot on the full s
 
 ### How we built it
 
-The recipe is Muon on the block matrices and AdamW on the embedding and scalars, with QK-norm, ReLU², U-net skips and a logit softcap from modded-nanogpt, plus a ResFormer value residual. Training uses a warmup-stable-decay schedule; for the last 35% the loader switches to a quality anneal mix of high-scoring FineWeb-Edu, FineMath and 5% decontaminated Wikipedia. The two main runs differ only in how hard the anneal leans on curated data. They took 8.58 and 8.36 H100-hours; the third, 16k-vocabulary run took 7.75.
+The recipe is Muon on the block matrices and AdamW on the embedding and scalars, with QK-norm, ReLU², U-net skips and a logit softcap from modded-nanogpt, plus a ResFormer value residual. Training uses a warmup-stable-decay schedule; for the last 35% the loader switches to a quality anneal mix of high-scoring FineWeb-Edu, FineMath and 5% decontaminated Wikipedia. The two main runs differ only in how hard the anneal leans on curated data. The submitted run took 8.58 H100-hours; the 1B-token sweep that chose its recipe took 5.23.
 
 Before committing to a 20B run we ran a 12-run, 1B-token ablation sweep: a baseline plus 11 single-change arms, each about half an H100-hour.
 
@@ -150,7 +150,7 @@ There is no standalone image of the full ablation table; slide 05 shows the key 
 | Track selection | Form: Track 01, TECH (foundational LLM development) | Select on submit |
 | Track 01: at most 50,000,000 trainable params incl. embeddings and head; count script and config in repo | README "Parameter count", `scripts/count_params.py`, `gibc/configs.py` | Done: 49,822,228 trainable parameters, printed by `scripts/count_params.py`; embedding and head are one tied tensor, included in the count |
 | Track 01: trained from scratch, no pretrained weights, fine-tuning or distillation | README intro, "Data", "AI use disclosure" | Done |
-| Track 01: hardware, total training time, approximate compute in README | README "Hardware, time and compute" | Done: 24.69 H100-hours for the three main runs, about 30.0 in total, about 2 L4-hours of evaluation, run history |
+| Track 01: hardware, total training time, approximate compute in README | README "Hardware, time and compute" | Done: 8.58 H100-hours for the submitted model plus 5.23 for the 12-arm sweep, run history |
 | Track 01: HellaSwag, ARC-Easy, PIQA, WinoGrande via lm-eval, WikiText-103 perplexity; numbers and eval script in README | README "Headline results", "Evaluation protocol", `gibc/evaluate.py`, `modal_eval.py` | Done |
 | AI tools disclosed in Built With and AI-assisted parts noted in README | Built With (section 3), README "AI use disclosure" | Done |
 | Commits pushed after the deadline may be disregarded | Push final README and results before the deadline | Pending |
