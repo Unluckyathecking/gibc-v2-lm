@@ -37,7 +37,7 @@ model-index:
 
 # gibc-v2-lm
 
-A 49.8M-parameter base language model, **pretrained from scratch** (random initialisation, own tokenizer, no teacher, no distillation) on 20B tokens of openly licensed English text in 8.58 H100-hours. It was built for the [Global Innovation Build Challenge V2](https://gibc-v2.devpost.com/), Track 01 (foundational LLM development, 50M-parameter cap). Code, training logs, ablations and every eval JSON: **https://github.com/Unluckyathecking/gibc-v2-lm**.
+A 49.8M-parameter base language model, **pretrained from scratch** (random initialisation, own tokenizer, no teacher, no distillation) on 20B tokens of openly licensed English text in 8.58 H100-hours. It was built for the [Global Innovation Build Challenge V2](https://gibc-v2.devpost.com/), Track 01 (foundational LLM development, 50M-parameter cap). Weights: **https://huggingface.co/Unluckyexe/gibc-v2-lm**. Code, training logs, ablations and every eval JSON: **https://github.com/Unluckyathecking/gibc-v2-lm**.
 
 This is a base model: it continues text and has no instruction or chat tuning.
 
