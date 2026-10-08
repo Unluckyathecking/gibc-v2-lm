@@ -12,6 +12,10 @@
     "arc_easy/acc_stderr": 0.010204645126856931,
     "arc_easy/acc_norm": 0.47853535353535354,
     "arc_easy/acc_norm_stderr": 0.010250325159456656,
+    "arc_challenge/acc": 0.22098976109215018,
+    "arc_challenge/acc_stderr": 0.012124929206818258,
+    "arc_challenge/acc_norm": 0.26109215017064846,
+    "arc_challenge/acc_norm_stderr": 0.012835523909473847,
     "piqa/acc": 0.6191512513601741,
     "piqa/acc_stderr": 0.011329743189016752,
     "piqa/acc_norm": 0.602829162132753,
@@ -43,5 +47,5 @@
     "word_ppl": 39.422988572004684,
     "bits_per_byte": 0.9913077666975526
   },
-  "eval_s": 195.0
+  "eval_s": 204.2
 }

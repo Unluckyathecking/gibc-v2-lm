@@ -127,3 +127,13 @@ def test_eval_weights_reports_both_wikitext_windowings(tmp_path, monkeypatch):
     assert (slide["stride"], lmeval["stride"]) == (TINY.ctx // 2, TINY.ctx - 1)
     assert slide["n_tokens"] == lmeval["n_tokens"] > 2 * TINY.ctx
     assert slide["total_nats"] != lmeval["total_nats"]
+
+
+def test_pick_metrics_reports_arc_challenge_acc_and_acc_norm():
+    from gibc.configs import LM_EVAL_TASKS
+    from gibc.evaluate import pick_metrics
+    assert "arc_challenge" in LM_EVAL_TASKS
+    res = {"arc_challenge": {"acc,none": 0.25, "acc_stderr,none": 0.01,
+                             "acc_norm,none": 0.28, "acc_norm_stderr,none": 0.013}}
+    assert pick_metrics(res) == {"arc_challenge/acc": 0.25, "arc_challenge/acc_stderr": 0.01,
+                                 "arc_challenge/acc_norm": 0.28, "arc_challenge/acc_norm_stderr": 0.013}

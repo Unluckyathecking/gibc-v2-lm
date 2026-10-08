@@ -19,7 +19,8 @@ from gibc.hf_wrap import load_hf, load_weights
 
 # Metrics we report per task (lm-eval keys are "<metric>,none" and "<metric>_stderr,none").
 REPORT_METRICS = {"hellaswag": ["acc_norm"], "arc_easy": ["acc", "acc_norm"],
-                  "piqa": ["acc", "acc_norm"], "winogrande": ["acc"]}
+                  "arc_challenge": ["acc", "acc_norm"], "piqa": ["acc", "acc_norm"],
+                  "winogrande": ["acc"]}
 N_AVG = 4  # snapshots in the "avg" variant: the last N decay-phase snapshots
 WT_STRIDE = 512  # sliding-window stride for the wikitext103_stride512 numbers
 

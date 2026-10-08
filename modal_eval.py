@@ -10,7 +10,7 @@ Results land in {run_dir}/evals/{variant}[_limitN].json on the gibc-runs volume.
 import modal
 
 from gibc.configs import SWEEP_RUNS
-from gibc.modal_common import VOLUMES, hf_secret, image, runs_vol
+from gibc.modal_common import VOLUMES, image, runs_vol
 
 app = modal.App("gibc-eval")
 
@@ -20,7 +20,7 @@ EVAL_GPU = "L4"
 SWEEP_LIMIT = 1000  # fast mode: first 1000 examples per task (hellaswag has 10,042)
 
 
-@app.function(image=image, gpu=EVAL_GPU, volumes=VOLUMES, secrets=[hf_secret], timeout=2 * 3600)
+@app.function(image=image, gpu=EVAL_GPU, volumes=VOLUMES, timeout=2 * 3600)  # public data: no HF token
 def eval_run(run: str, variants: str = "final,avg", limit: int | None = None) -> dict:
     """Evaluate one run's variants, write evals/*.json and commit the runs volume."""
     from gibc.evaluate import evaluate_run
@@ -34,7 +34,8 @@ def format_table(recs: list[dict]) -> str:
     """One line per (run, variant): benchmark accuracies, then WikiText word perplexity and
     bits per byte, sliding stride 512 (wt_*) and lm-eval-style disjoint windows (lmwt_*)."""
     cols = [("hellaswag/acc_norm", "hs_n"), ("arc_easy/acc", "arcE"),
-            ("arc_easy/acc_norm", "arcE_n"), ("piqa/acc", "piqa"), ("piqa/acc_norm", "piqa_n"),
+            ("arc_easy/acc_norm", "arcE_n"), ("arc_challenge/acc", "arcC"),
+            ("arc_challenge/acc_norm", "arcC_n"), ("piqa/acc", "piqa"), ("piqa/acc_norm", "piqa_n"),
             ("winogrande/acc", "wino")]
     head = f"{'run':<18}{'variant':<8}" + "".join(f"{c:>8}" for _, c in cols)
     lines = [head + f"{'wt_wppl':>10}{'wt_bpb':>8}{'lmwt_wppl':>10}{'lmwt_bpb':>9}{'limit':>7}"]

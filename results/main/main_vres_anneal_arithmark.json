@@ -1,0 +1,183 @@
+{
+  "arithmark-3": {
+    "repo": "AxiomicLabs/Arithmark-3.0",
+    "revision": "6f6e59dd9b7e2c63455f7af7f838f9ecc3d0a746",
+    "command": "python bencharithmark-3.py --model <hf_release> --data-path arithmark-3.jsonl",
+    "result": {
+      "model": "/tmp/hf_release",
+      "tokenizer": "/tmp/hf_release",
+      "params": 49822228,
+      "dataset": {
+        "path": "/tmp/arithmark-3/arithmark-3.jsonl",
+        "sha256": "bf8ab1a5193d52cdf0e05ff0b3ca226bdfcf416cb6e75562dcbe72e7e4559435",
+        "items": 1000
+      },
+      "runtime": {
+        "device": "cuda",
+        "dtype": "torch.bfloat16",
+        "batch_size": 32,
+        "max_context": 1024,
+        "attention_implementation": "auto",
+        "compiled": false,
+        "torch_version": "2.11.0+cu130"
+      },
+      "primary_metric": "acc_norm",
+      "results": {
+        "arithmark-3": {
+          "acc": 40.2,
+          "acc_norm": 40.2,
+          "raw_correct": 402,
+          "norm_correct": 402,
+          "total": 1000,
+          "categories": {
+            "elementary_school_math_continuation::addition::grades_1_2::easy": {
+              "acc": 22.65625,
+              "acc_norm": 22.65625,
+              "raw_correct": 29,
+              "norm_correct": 29,
+              "total": 128
+            },
+            "elementary_school_math_continuation::comparison::grades_2_3::medium": {
+              "acc": 20.454545454545457,
+              "acc_norm": 20.454545454545457,
+              "raw_correct": 9,
+              "norm_correct": 9,
+              "total": 44
+            },
+            "elementary_school_math_continuation::comparison_difference::grades_2_3::medium": {
+              "acc": 29.166666666666668,
+              "acc_norm": 29.166666666666668,
+              "raw_correct": 14,
+              "norm_correct": 14,
+              "total": 48
+            },
+            "elementary_school_math_continuation::data::grades_2_3::easy": {
+              "acc": 27.906976744186046,
+              "acc_norm": 27.906976744186046,
+              "raw_correct": 12,
+              "norm_correct": 12,
+              "total": 43
+            },
+            "elementary_school_math_continuation::division::grades_3_4::medium": {
+              "acc": 51.85185185185185,
+              "acc_norm": 51.85185185185185,
+              "raw_correct": 28,
+              "norm_correct": 28,
+              "total": 54
+            },
+            "elementary_school_math_continuation::fractions_counting::grades_3_4::medium": {
+              "acc": 24.0,
+              "acc_norm": 24.0,
+              "raw_correct": 12,
+              "norm_correct": 12,
+              "total": 50
+            },
+            "elementary_school_math_continuation::geometry_area::grades_4_5::medium": {
+              "acc": 82.6923076923077,
+              "acc_norm": 82.6923076923077,
+              "raw_correct": 43,
+              "norm_correct": 43,
+              "total": 52
+            },
+            "elementary_school_math_continuation::geometry_perimeter::grades_4_5::medium": {
+              "acc": 64.44444444444444,
+              "acc_norm": 64.44444444444444,
+              "raw_correct": 29,
+              "norm_correct": 29,
+              "total": 45
+            },
+            "elementary_school_math_continuation::measurement::grades_2_3::easy": {
+              "acc": 32.89473684210527,
+              "acc_norm": 32.89473684210527,
+              "raw_correct": 25,
+              "norm_correct": 25,
+              "total": 76
+            },
+            "elementary_school_math_continuation::money::grades_3_4::medium": {
+              "acc": 23.4375,
+              "acc_norm": 23.4375,
+              "raw_correct": 15,
+              "norm_correct": 15,
+              "total": 64
+            },
+            "elementary_school_math_continuation::multiplication::grades_3_4::medium": {
+              "acc": 78.37837837837837,
+              "acc_norm": 78.37837837837837,
+              "raw_correct": 58,
+              "norm_correct": 58,
+              "total": 74
+            },
+            "elementary_school_math_continuation::patterns::grades_3_4::medium": {
+              "acc": 35.84905660377358,
+              "acc_norm": 35.84905660377358,
+              "raw_correct": 19,
+              "norm_correct": 19,
+              "total": 53
+            },
+            "elementary_school_math_continuation::subtraction::grades_1_2::easy": {
+              "acc": 19.65811965811966,
+              "acc_norm": 19.65811965811966,
+              "raw_correct": 23,
+              "norm_correct": 23,
+              "total": 117
+            },
+            "elementary_school_math_continuation::time::grades_2_3::easy": {
+              "acc": 100.0,
+              "acc_norm": 100.0,
+              "raw_correct": 55,
+              "norm_correct": 55,
+              "total": 55
+            },
+            "elementary_school_math_continuation::two_step_add_subtract::grades_2_3::medium": {
+              "acc": 30.434782608695656,
+              "acc_norm": 30.434782608695656,
+              "raw_correct": 14,
+              "norm_correct": 14,
+              "total": 46
+            },
+            "elementary_school_math_continuation::two_step_addition::grades_2_3::medium": {
+              "acc": 26.31578947368421,
+              "acc_norm": 26.31578947368421,
+              "raw_correct": 5,
+              "norm_correct": 5,
+              "total": 19
+            },
+            "elementary_school_math_continuation::two_step_subtraction::grades_2_3::medium": {
+              "acc": 37.5,
+              "acc_norm": 37.5,
+              "raw_correct": 12,
+              "norm_correct": 12,
+              "total": 32
+            }
+          },
+          "timing": {
+            "tokenization_seconds": 0.5897980280000006,
+            "evaluation_seconds": 1.9771949870000043,
+            "examples_per_second": 505.7670116376832
+          },
+          "primary_metric": "acc_norm",
+          "primary_acc": 40.2
+        }
+      }
+    },
+    "stdout_tail": "Loaded 1000 ArithMark 3.0 examples from /tmp/arithmark-3/arithmark-3.jsonl\nArithMark 3.0 dataset SHA-256: bf8ab1a5193d52cdf0e05ff0b3ca226bdfcf416cb6e75562dcbe72e7e4559435\nUsing device: cuda\n\n====================================================================\n  Loading /tmp/hf_release...\n====================================================================\n  49,822,228 parameters (torch.bfloat16)\n  arithmark-3: raw 40.20% (402/1000)  normalized 40.20% (402/1000)\n  speed: 505.8 examples/s  (tokenize 0.59s, evaluate 1.98s)\n\n  Category                                                             N       Raw   Normalized\n  ----------------------------------------------------------------------------------------------\n  elementary_school_math_continuation::addition::grades_1_2::easy    128    22.66%       22.66%\n  elementary_school_math_continuation::comparison::grades_2_3::medium    44    20.45%       20.45%\n  elementary_school_math_continuation::comparison_difference::grades_2_3::medium    48    29.17%       29.17%\n  elementary_school_math_continuation::data::grades_2_3::easy         43    27.91%       27.91%\n  elementary_school_math_continuation::division::grades_3_4::medium    54    51.85%       51.85%\n  elementary_school_math_continuation::fractions_counting::grades_3_4::medium    50    24.00%       24.00%\n  elementary_school_math_continuation::geometry_area::grades_4_5::medium    52    82.69%       82.69%\n  elementary_school_math_continuation::geometry_perimeter::grades_4_5::medium    45    64.44%       64.44%\n  elementary_school_math_continuation::measurement::grades_2_3::easy    76    32.89%       32.89%\n  elementary_school_math_continuation::money::grades_3_4::medium      64    23.44%       23.44%\n  elementary_school_math_continuation::multiplication::grades_3_4::medium    74    78.38%       78.38%\n  elementary_school_math_continuation::patterns::grades_3_4::medium    53    35.85%       35.85%\n  elementary_school_math_continuation::subtraction::grades_1_2::easy   117    19.66%       19.66%\n  elementary_school_math_continuation::time::grades_2_3::easy         55   100.00%      100.00%\n  elementary_school_math_continuation::two_step_add_subtract::grades_2_3::medium    46    30.43%       30.43%\n  elementary_school_math_continuation::two_step_addition::grades_2_3::medium    19    26.32%       26.32%\n  elementary_school_math_continuation::two_step_subtraction::grades_2_3::medium    32    37.50%       37.50%\n\n====================================================================\n  /tmp/hf_release (49,822,228 params) RESULTS\n====================================================================\n  Raw continuation accuracy        40.20%\n  Length-normalized accuracy       40.20%\n  Primary (acc_norm)           40.20%\n====================================================================\nResults saved to benchmark_cache/_tmp_hf_release_arithmark-3_results.json\n"
+  },
+  "arithmark-2": {
+    "repo": "AxiomicLabs/ArithMark-2.0",
+    "revision": "5bd986c7305dcccec88432d630aae1ac9280a71f",
+    "command": "python benchmark_arithmark-2.0.py --model <hf_release> --data-path arithmark_2.0.jsonl",
+    "result": {
+      "model": "/tmp/hf_release",
+      "params": 49822228,
+      "dataset": "/tmp/arithmark-2/arithmark_2.0.jsonl",
+      "results": {
+        "arithmark_2.0": {
+          "acc": 36.8,
+          "correct": 920,
+          "total": 2500
+        }
+      }
+    },
+    "stdout_tail": "Loaded 2500 ArithMark 2.0 examples from /tmp/arithmark-2/arithmark_2.0.jsonl\nUsing device: cuda\n\n============================================================\n  Loading /tmp/hf_release...\n============================================================\n  49,822,228 parameters\n  arithmark_2.0: acc 36.80% (920/2500)\n  ops=  1  ops=  2  ops=  3     Avg\n  ---------------------------------\n   38.56%   39.47%   28.40%  36.80%\n\n============================================================\n  /tmp/hf_release (49,822,228 params) RESULTS\n============================================================\n  arithmark_2.0     36.80%\n============================================================\nResults saved to benchmark_cache/_tmp_hf_release_arithmark_2.0_results.json\n"
+  }
+}

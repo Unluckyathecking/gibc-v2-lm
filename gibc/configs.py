@@ -186,5 +186,5 @@ MAIN_RUNS = [name for name in RUNS if name.startswith("main_")]
 SWEEP_RUNS = [name for name in RUNS if name.startswith("sweep_")]
 
 # --- Evaluation --------------------------------------------------------------
-LM_EVAL_TASKS = ["hellaswag", "arc_easy", "piqa", "winogrande"]
+LM_EVAL_TASKS = ["hellaswag", "arc_easy", "arc_challenge", "piqa", "winogrande"]
 WIKITEXT = ("Salesforce/wikitext", "wikitext-103-raw-v1", "test")

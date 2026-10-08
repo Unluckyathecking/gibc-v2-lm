@@ -16,3 +16,12 @@ def test_table_shows_both_wikitext_windowings():
 def test_eval_sweep_defaults_to_final_only():
     fn = eval_sweep.info.raw_f  # the function behind @app.local_entrypoint()
     assert inspect.signature(fn).parameters["variants"].default == "final"
+
+
+def test_table_has_arc_challenge_columns():
+    wt = {"word_ppl": 1.0, "bits_per_byte": 1.0}
+    rec = {"run": "r", "variant": "final", "limit": None,
+           "lm_eval": {"arc_challenge/acc": 0.2512, "arc_challenge/acc_norm": 0.2833},
+           "wikitext103_stride512": wt, "wikitext103_lmeval_style": wt}
+    head, row = format_table([rec]).splitlines()
+    assert "arcC" in head and "arcC_n" in head and "0.2512" in row and "0.2833" in row

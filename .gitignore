@@ -10,3 +10,8 @@ video/frames/
 video/voiceover/scene_*
 video/voice_samples/*.mp3
 video/voice_samples/*.mp4
+hf_release/model.safetensors
+hf_release/config.json
+hf_release/tokenizer.json
+hf_release/tokenizer_config.json
+hf_release/special_tokens_map.json
