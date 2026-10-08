@@ -2,7 +2,7 @@
 
 Target: Hugging Face Space `AxiomicLabs/Open_SLM_Leaderboard` (edit `index.html`, the `ORGS` and `MODELS` constants under "CENTRALIZED DATA"). Not yet opened.
 
-Model: https://huggingface.co/Unluckyexe/gibc-v2-lm (public; run `main_vres_anneal`, final weights, 49,822,228 parameters, trained from scratch). Code and logs: https://github.com/Unluckyathecking/gibc-v2-lm (branch `axiomic-submission` until merged).
+Model: https://huggingface.co/Unluckyexe/gibc-v2-lm (public; run `main_vres_anneal`, final weights, 49,822,228 parameters, trained from scratch). Code and logs: https://github.com/Unluckyathecking/gibc-v2-lm.
 
 ## Which metric the board uses
 

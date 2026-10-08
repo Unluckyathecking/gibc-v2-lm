@@ -364,3 +364,7 @@ Methods
 - Llama Team, "The Llama 3 Herd of Models" (pre-tokenization regex), 2024. arXiv:2407.21783
 
 See [`docs/DESIGN.md`](docs/DESIGN.md) for the reasoning behind each component and what we rejected.
+
+## Licence
+
+Code and model weights are released under the Apache License 2.0 (see [LICENSE](LICENSE)); training data keeps its own licences, listed above.

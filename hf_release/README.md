@@ -124,7 +124,7 @@ A 50M-parameter base model: it produces fluent but often wrong text, has no safe
 
 ## Licence
 
-Weights and code: Apache-2.0. Training data licences (ODC-By, CC-BY-4.0, CC-BY-SA/GFDL) are listed in the GitHub README.
+Weights and code: Apache-2.0 ([LICENSE](https://github.com/Unluckyathecking/gibc-v2-lm/blob/main/LICENSE)). Training data licences (ODC-By, CC-BY-4.0, CC-BY-SA/GFDL) are listed in the GitHub README.
 
 ## Disclosure
 
